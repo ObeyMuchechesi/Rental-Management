@@ -8,7 +8,8 @@ const router = express.Router();
 router.get('/', protect, async (req, res) => {
   try {
     const filter = {};
-    if (req.user.role === 'employee' && req.user.employee) {
+    if (req.user.role === 'employee') {
+      if (!req.user.employee) return res.status(403).json({ message: 'No employee profile linked to your account' });
       filter.employee = req.user.employee;
     }
     if (req.query.status) filter.status = req.query.status;
@@ -26,7 +27,13 @@ router.get('/', protect, async (req, res) => {
 // POST create leave request
 router.post('/', protect, async (req, res) => {
   try {
-    const { employee, leaveType, startDate, endDate, reason } = req.body;
+    let { employee, leaveType, startDate, endDate, reason } = req.body;
+    // Employees can only request leave for themselves
+    if (req.user.role === 'employee') {
+      if (!req.user.employee) return res.status(403).json({ message: 'No employee profile linked to your account' });
+      employee = req.user.employee;
+    }
+    if (!employee) return res.status(400).json({ message: 'Employee is required' });
     const start = new Date(startDate);
     const end = new Date(endDate);
     const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
@@ -46,8 +53,14 @@ router.post('/', protect, async (req, res) => {
 router.put('/:id', protect, authorize('admin', 'hr', 'manager'), async (req, res) => {
   try {
     const { status, rejectionReason } = req.body;
+    if (!['Approved', 'Rejected', 'Cancelled'].includes(status)) {
+      return res.status(400).json({ message: 'Status must be Approved, Rejected or Cancelled' });
+    }
     const leave = await Leave.findById(req.params.id);
     if (!leave) return res.status(404).json({ message: 'Leave not found' });
+    if (leave.status !== 'Pending') {
+      return res.status(400).json({ message: `Leave already ${leave.status.toLowerCase()}` });
+    }
 
     leave.status = status;
     if (status === 'Approved') {
@@ -72,7 +85,7 @@ router.put('/:id', protect, authorize('admin', 'hr', 'manager'), async (req, res
   }
 });
 
-router.delete('/:id', protect, async (req, res) => {
+router.delete('/:id', protect, authorize('admin', 'hr'), async (req, res) => {
   try {
     await Leave.findByIdAndDelete(req.params.id);
     res.json({ message: 'Leave deleted' });

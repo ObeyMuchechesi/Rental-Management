@@ -6,7 +6,7 @@ const Login = () => {
   const { login, register } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState('login');
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'admin' });
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +20,7 @@ const Login = () => {
       else setError(res.message);
     } else {
       try {
-        await register(form.name, form.email, form.password, form.role);
+        await register(form.name, form.email, form.password);
         navigate('/');
       } catch (err) {
         setError(err.response?.data?.message || 'Registration failed');
@@ -33,7 +33,7 @@ const Login = () => {
     <div className="login-page">
       <div className="login-card">
         <h2>{mode === 'login' ? 'Welcome back' : 'Create account'}</h2>
-        <p>{mode === 'login' ? 'Sign in to your HR dashboard' : 'Set up your admin account'}</p>
+        <p>{mode === 'login' ? 'Sign in to your HR dashboard' : 'Create your employee account'}</p>
         {error && <div className="badge badge-red" style={{ display: 'block', marginBottom: 16, textAlign: 'center' }}>{error}</div>}
         <form onSubmit={handleSubmit}>
           {mode === 'register' && (
@@ -51,15 +51,10 @@ const Login = () => {
             <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={6} />
           </div>
           {mode === 'register' && (
-            <div className="form-group">
-              <label>Role</label>
-              <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                <option value="admin">Admin</option>
-                <option value="hr">HR</option>
-                <option value="manager">Manager</option>
-                <option value="employee">Employee</option>
-              </select>
-            </div>
+            <p style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
+              New accounts start with the Employee role. An admin can upgrade your
+              role from the dashboard afterwards.
+            </p>
           )}
           <button className="btn btn-primary" disabled={loading}>
             {loading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Account'}
@@ -74,7 +69,8 @@ const Login = () => {
         </p>
         {mode === 'login' && (
           <p style={{ textAlign: 'center', fontSize: 12, color: '#94a3b8', marginTop: 12 }}>
-            First time? Click Register to create an admin user.
+            Registering for the first time? Your account starts as an Employee;
+            an admin can promote it later.
           </p>
         )}
       </div>

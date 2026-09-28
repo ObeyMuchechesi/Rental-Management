@@ -32,10 +32,24 @@ npm install
 npm start          # http://localhost:3000 (proxies /api to port 5000)
 ```
 
-## First login
+## First login & roles
 
-Open http://localhost:3000, click **Register**, and create an account with role **Admin**.
-Then add departments and employees.
+Open http://localhost:3000 and **Register** — new accounts always start with the
+**Employee** role (public signup cannot grant privileged roles).
+
+To create the first admin, register normally, then promote yourself from the
+MongoDB Atlas UI (Browse Collections → `users` → edit your document → set
+`role: "admin"`), or have an existing admin call:
+
+```bash
+curl -X PUT http://localhost:5001/api/auth/role \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"<your-user-id>","role":"admin"}'
+```
+
+Roles: `admin` (everything) → `hr` (most writes) → `manager` (leave approvals)
+→ `employee` (own data only).
 
 ## Notes
 

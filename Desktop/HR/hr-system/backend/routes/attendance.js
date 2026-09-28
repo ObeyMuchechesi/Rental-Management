@@ -22,7 +22,13 @@ router.get('/summary/today', protect, async (req, res) => {
 router.get('/', protect, async (req, res) => {
   try {
     const filter = {};
-    if (req.query.employee) filter.employee = req.query.employee;
+    // Employees can only see their own records
+    if (req.user.role === 'employee') {
+      if (!req.user.employee) return res.status(403).json({ message: 'No employee profile linked to your account' });
+      filter.employee = req.user.employee;
+    } else if (req.query.employee) {
+      filter.employee = req.query.employee;
+    }
     if (req.query.date) {
       const d = new Date(req.query.date);
       filter.date = { $gte: new Date(d.setHours(0, 0, 0, 0)), $lte: new Date(d.setHours(23, 59, 59, 999)) };
@@ -40,7 +46,13 @@ router.get('/', protect, async (req, res) => {
 // POST check-in / create
 router.post('/', protect, async (req, res) => {
   try {
-    const { employee, status, notes } = req.body;
+    let { employee, status, notes } = req.body;
+    // Employees can only check themselves in
+    if (req.user.role === 'employee') {
+      if (!req.user.employee) return res.status(403).json({ message: 'No employee profile linked to your account' });
+      employee = req.user.employee;
+    }
+    if (!employee) return res.status(400).json({ message: 'Employee is required' });
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     let record = await Attendance.findOne({ employee, date: today });
@@ -66,8 +78,14 @@ router.put('/:id', protect, async (req, res) => {
     if (!record) return res.status(404).json({ message: 'Record not found' });
 
     if (req.body.checkOut) {
+      if (!record.checkIn) {
+        return res.status(400).json({ message: 'Cannot check out before checking in' });
+      }
+      if (record.checkOut) {
+        return res.status(400).json({ message: 'Already checked out' });
+      }
       record.checkOut = new Date();
-      const diff = (record.checkOut - record.checkIn) / (1000 * 60 * 60);
+      const diff = Math.max(0, (record.checkOut - record.checkIn) / (1000 * 60 * 60));
       record.hoursWorked = Math.round(diff * 100) / 100;
     }
     if (req.body.status) record.status = req.body.status;

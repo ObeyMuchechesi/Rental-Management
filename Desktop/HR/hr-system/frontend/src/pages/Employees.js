@@ -50,8 +50,10 @@ const Employees = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      if (editing) await api.put(`/employees/${editing._id}`, form);
-      else await api.post('/employees', form);
+      // Strip read-only/model fields so PUT doesn't try to modify _id, timestamps, etc.
+      const { _id, id, createdAt, updatedAt, __v, fullName, leaveBalance, ...payload } = form;
+      if (editing) await api.put(`/employees/${editing._id}`, payload);
+      else await api.post('/employees', payload);
       setShowModal(false);
       load();
     } catch (err) {

@@ -11,7 +11,8 @@ router.get('/', protect, async (req, res) => {
     if (req.query.year) filter.year = Number(req.query.year);
 
     // Employees can only see their own payroll
-    if (req.user.role === 'employee' && req.user.employee) {
+    if (req.user.role === 'employee') {
+      if (!req.user.employee) return res.status(403).json({ message: 'No employee profile linked to your account' });
       filter.employee = req.user.employee;
     }
 
