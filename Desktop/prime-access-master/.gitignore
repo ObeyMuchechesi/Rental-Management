@@ -1,0 +1,18 @@
+node_modules/
+.env
+.env.*
+!**/.env.example
+public/
+!client/public/
+!client/public/favicon.png
+!client/public/og-image.png
+.vercel/
+server/uploads/
+dist/
+*.log
+.DS_Store
+.vercel
+.env*
+
+# local image tooling
+.tools/

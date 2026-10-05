@@ -1,0 +1,17 @@
+{
+  "name": "prime-access",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Prime Access Immigration Consultancy Firm - MERN + Tailwind website",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "build": "npm run build -w client && node scripts/copy-static.js",
+    "start": "npm run start -w server",
+    "seed": "npm run seed -w server",
+    "dev:server": "npm run dev -w server",
+    "dev:client": "npm run dev -w client"
+  }
+}

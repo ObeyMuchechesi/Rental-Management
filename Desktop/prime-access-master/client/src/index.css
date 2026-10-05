@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-white text-brand-950 font-sans antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+  h1 {
+    @apply font-bold;
+  }
+  h2, h3, h4, h5, h6 {
+    @apply font-semibold;
+  }
+}
+
+@layer components {
+  .container-x {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply btn bg-brand-950 text-white hover:bg-brand-800 focus-visible:ring-brand-700;
+  }
+  .btn-gold {
+    @apply btn bg-gold-600 text-white hover:bg-gold-500 focus-visible:ring-gold-500;
+  }
+  .btn-light {
+    @apply btn bg-white text-brand-950 hover:bg-brand-100 focus-visible:ring-white;
+  }
+  .btn-whatsapp {
+    @apply btn bg-[#25D366] text-white hover:bg-[#1eb958] focus-visible:ring-[#25D366];
+  }
+  .btn-outline {
+    @apply btn border border-brand-300 bg-transparent text-brand-900 hover:border-brand-600 hover:bg-brand-50 focus-visible:ring-brand-400;
+  }
+  .input {
+    @apply w-full rounded-xl border border-brand-200 bg-white px-4 py-3 text-sm text-brand-950 placeholder:text-brand-300 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-brand-900;
+  }
+  .chip {
+    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
+  }
+}
