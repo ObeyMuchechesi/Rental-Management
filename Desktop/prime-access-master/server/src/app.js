@@ -29,7 +29,9 @@ app.use(async (req, res, next) => {
     if (!seeded) {
       seeded = true;
       ensureAdmin().catch((err) => console.error('[seed] admin setup failed', err.message));
-      migrateContactSettings(); // never throws - rewrites legacy phone/WhatsApp/address once
+      // Awaited so the first request after a cold start can never serve the
+      // legacy contact details (never throws - failed runs are logged inside).
+      await migrateContactSettings();
     }
     next();
   } catch (err) {
