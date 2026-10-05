@@ -9,7 +9,8 @@ let migratePromise = null;
  * business has set deliberately in Admin > Settings is left untouched.
  * Safe to call on every boot - the second run finds nothing to change.
  */
-const LEGACY_PHONE_DIGITS = ['263771234567'];
+// 263771234567 = original placeholder, 263772401655 = superseded number
+const LEGACY_PHONE_DIGITS = ['263771234567', '263772401655'];
 const LEGACY_WHATSAPP_DIGITS = ['263771234567'];
 
 const PHONE = '+263772401643';
