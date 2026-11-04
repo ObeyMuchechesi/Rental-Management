@@ -28,7 +28,10 @@ export default function Nav() {
   return (
     <nav className="border-b border-gray-200 bg-white">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 p-4">
-        <Link href={role === "tenant" ? "/my-lease" : "/dashboard"} className="font-bold text-gray-900">
+        <Link
+          href={status !== "authenticated" ? "/" : role === "tenant" ? "/my-lease" : "/dashboard"}
+          className="font-bold text-gray-900"
+        >
           Rental
         </Link>
 
