@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -18,8 +19,13 @@ export default function RegisterPage() {
       body: JSON.stringify({ name, email, password, role }),
     });
     const data = await res.json();
-    if (!res.ok) setError(data.error || "Registration failed");
-    else router.push("/dashboard");
+    if (!res.ok) return setError(data.error || "Registration failed");
+
+    // Sign the new account in straight away so the dashboard is reachable.
+    const login = await signIn("credentials", { email, password, redirect: false });
+    if (login?.error) return setError("Account created, but sign-in failed. Please log in.");
+    router.push("/dashboard");
+    router.refresh();
   };
 
   return (

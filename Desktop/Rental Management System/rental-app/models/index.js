@@ -10,6 +10,7 @@ const UserSchema = new Schema({
 }, { timestamps: true });
 
 const PropertySchema = new Schema({
+  owner: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
   name: { type: String, required: true },
   address: { type: String, required: true },
   type: { type: String, enum: ["apartment", "house", "commercial"], default: "apartment" },
@@ -25,11 +26,13 @@ const UnitSchema = new Schema({
 }, { timestamps: true });
 
 const TenantSchema = new Schema({
+  owner: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
   name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
+  email: { type: String, required: true, lowercase: true },
   phone: String,
   emergencyContact: String,
 }, { timestamps: true });
+TenantSchema.index({ owner: 1, email: 1 }, { unique: true });
 
 const LeaseSchema = new Schema({
   unit: { type: Schema.Types.ObjectId, ref: "Unit", required: true },
