@@ -1,12 +1,12 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { Wrench, Send, AlertTriangle, DoorOpen, User } from "lucide-react";
+import { Alert, Badge, EmptyState, Loading, PageHeader, btnPrimary, inputClass } from "@/app/components/ui";
 
-const statusStyles = {
-  open: "bg-yellow-100 text-yellow-700",
-  in_progress: "bg-blue-100 text-blue-700",
-  resolved: "bg-green-100 text-green-700",
-};
+const statusTone = { open: "amber", in_progress: "blue", resolved: "green" };
+const priorityTone = { low: "slate", medium: "blue", high: "red" };
 
 export default function MaintenancePage() {
   const { data: session } = useSession();
@@ -16,12 +16,13 @@ export default function MaintenancePage() {
   const [form, setForm] = useState({ unit: "", title: "", description: "", priority: "medium" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
 
   const load = async () => {
     setLoading(true);
     const res = await fetch("/api/maintenance");
     const data = await res.json();
-    if (res.ok) setRequests(data);
+    if (res.ok) setRequests(Array.isArray(data) ? data : []);
     else setError(data.error || "Failed to load requests");
     setLoading(false);
   };
@@ -31,19 +32,21 @@ export default function MaintenancePage() {
     if (isLandlord) {
       fetch("/api/units")
         .then((r) => (r.ok ? r.json() : []))
-        .then(setUnits);
+        .then((d) => setUnits(Array.isArray(d) ? d : []));
     }
   }, [isLandlord]);
 
   const submit = async (e) => {
     e.preventDefault();
     setError("");
+    setBusy(true);
     const res = await fetch("/api/maintenance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),
     });
     const data = await res.json();
+    setBusy(false);
     if (!res.ok) return setError(data.error || "Could not submit request");
     setForm({ unit: "", title: "", description: "", priority: "medium" });
     load();
@@ -60,88 +63,106 @@ export default function MaintenancePage() {
   };
 
   return (
-    <main className="space-y-6">
-      <h1 className="text-2xl font-bold">{isLandlord ? "Maintenance" : "My Requests"}</h1>
+    <main className="space-y-5 pb-10">
+      <PageHeader
+        eyebrow="Care"
+        title={isLandlord ? "Maintenance" : "My requests"}
+        subtitle={
+          isLandlord
+            ? "Repairs reported by tenants, with priority and status."
+            : "Report a problem in your unit and follow its progress."
+        }
+        icon={Wrench}
+        actions={
+          <Badge tone="amber">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {requests.filter((r) => r.status !== "resolved").length} open
+          </Badge>
+        }
+      />
 
-      <form onSubmit={submit} className="grid gap-2 rounded-xl border border-gray-200 bg-white p-4 md:grid-cols-4">
-        {isLandlord && (
-          <select
-            className="rounded border px-3 py-2"
-            value={form.unit}
-            onChange={(e) => setForm({ ...form, unit: e.target.value })}
+      <form onSubmit={submit} className="glass-card rounded-2xl p-4 sm:p-5">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+          {isLandlord && (
+            <select className={inputClass} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} required>
+              <option value="">Unit…</option>
+              {units.map((u) => (
+                <option key={u._id} value={u._id}>
+                  {u.property?.name ? `${u.property.name} · ${u.label}` : u.label}
+                </option>
+              ))}
+            </select>
+          )}
+          <input
+            className={`${inputClass} ${isLandlord ? "" : "md:col-span-2"}`}
+            placeholder="Issue title"
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
             required
-          >
-            <option value="">Unit…</option>
-            {units.map((u) => (
-              <option key={u._id} value={u._id}>
-                {u.label}
-              </option>
-            ))}
+          />
+          <input
+            className={inputClass}
+            placeholder="Description (optional)"
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
+          <select className={inputClass} value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
+            <option value="low">Low priority</option>
+            <option value="medium">Medium priority</option>
+            <option value="high">High priority</option>
           </select>
-        )}
-        <input
-          className="rounded border px-3 py-2"
-          placeholder="Issue title"
-          value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
-          required
-        />
-        <input
-          className="rounded border px-3 py-2"
-          placeholder="Description (optional)"
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-        />
-        <select
-          className="rounded border px-3 py-2"
-          value={form.priority}
-          onChange={(e) => setForm({ ...form, priority: e.target.value })}
-        >
-          <option value="low">Low priority</option>
-          <option value="medium">Medium priority</option>
-          <option value="high">High priority</option>
-        </select>
-        <button className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 md:col-span-4">
-          Submit request
-        </button>
+          <button className={btnPrimary} disabled={busy}>
+            <Send className="h-4 w-4" /> {busy ? "Sending…" : "Submit request"}
+          </button>
+        </div>
       </form>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <Alert>{error}</Alert>}
 
       {loading ? (
-        <p className="text-gray-500">Loading…</p>
+        <Loading label="Loading requests…" />
       ) : requests.length === 0 ? (
-        <p className="rounded-lg border border-gray-200 bg-white p-5 text-gray-600">No maintenance requests yet.</p>
+        <EmptyState icon={Wrench} title="Nothing to fix" description="Maintenance requests will appear here." />
       ) : (
-        <div className="divide-y rounded-xl border border-gray-200 bg-white">
+        <div className="space-y-3">
           {requests.map((r) => (
-            <div key={r._id} className="flex flex-wrap items-start justify-between gap-3 p-4">
-              <div>
-                <p className="font-medium">{r.title}</p>
-                <p className="text-sm text-gray-500">
-                  {r.unit?.label ? `${r.unit.label} · ` : ""}
-                  {r.tenant?.name ? `${r.tenant.name} · ` : ""}
-                  {r.priority} priority
-                </p>
-                {r.description && <p className="mt-1 text-sm text-gray-600">{r.description}</p>}
+            <article key={r._id} className="glass-card rounded-2xl p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="font-semibold text-slate-900">{r.title}</p>
+                  <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
+                    {r.unit?.label ? (
+                      <span className="flex items-center gap-1.5">
+                        <DoorOpen className="h-3.5 w-3.5 text-slate-400" />
+                        {r.unit.label}
+                      </span>
+                    ) : null}
+                    {r.tenant?.name ? (
+                      <span className="flex items-center gap-1.5">
+                        <User className="h-3.5 w-3.5 text-slate-400" />
+                        {r.tenant.name}
+                      </span>
+                    ) : null}
+                    <Badge tone={priorityTone[r.priority] || "slate"}>{r.priority} priority</Badge>
+                  </p>
+                  {r.description ? <p className="mt-2 text-sm text-slate-600">{r.description}</p> : null}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge tone={statusTone[r.status] || "slate"}>{r.status.replace("_", " ")}</Badge>
+                  {isLandlord && r.status !== "resolved" && (
+                    <select
+                      className={`${inputClass} w-auto py-1.5 text-sm`}
+                      value={r.status}
+                      onChange={(e) => setStatus(r._id, e.target.value)}
+                    >
+                      <option value="open">Open</option>
+                      <option value="in_progress">In progress</option>
+                      <option value="resolved">Resolved</option>
+                    </select>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className={`rounded px-2 py-0.5 text-xs ${statusStyles[r.status]}`}>
-                  {r.status.replace("_", " ")}
-                </span>
-                {isLandlord && r.status !== "resolved" && (
-                  <select
-                    className="rounded border px-2 py-1 text-sm"
-                    value={r.status}
-                    onChange={(e) => setStatus(r._id, e.target.value)}
-                  >
-                    <option value="open">Open</option>
-                    <option value="in_progress">In progress</option>
-                    <option value="resolved">Resolved</option>
-                  </select>
-                )}
-              </div>
-            </div>
+            </article>
           ))}
         </div>
       )}

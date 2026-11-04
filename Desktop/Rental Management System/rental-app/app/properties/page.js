@@ -1,11 +1,21 @@
 "use client";
+
 import { useEffect, useState } from "react";
+import { Building2, MapPin, Plus, Trash2, Home, Store, DoorOpen } from "lucide-react";
+import { Alert, Badge, EmptyState, Loading, PageHeader, btnDanger, btnPrimary, inputClass } from "@/app/components/ui";
+
+const typeMeta = {
+  apartment: { icon: Building2, tone: "blue" },
+  house: { icon: Home, tone: "green" },
+  commercial: { icon: Store, tone: "amber" },
+};
 
 export default function PropertiesPage() {
   const [properties, setProperties] = useState([]);
   const [form, setForm] = useState({ name: "", address: "", type: "apartment" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -23,12 +33,14 @@ export default function PropertiesPage() {
   const add = async (e) => {
     e.preventDefault();
     setError("");
+    setBusy(true);
     const res = await fetch("/api/properties", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),
     });
     const data = await res.json();
+    setBusy(false);
     if (!res.ok) return setError(data.error || "Could not add property");
     setForm({ name: "", address: "", type: "apartment" });
     load();
@@ -42,62 +54,90 @@ export default function PropertiesPage() {
   };
 
   return (
-    <main className="space-y-6">
-      <h1 className="text-2xl font-bold">Properties</h1>
+    <main className="space-y-5 pb-10">
+      <PageHeader
+        eyebrow="Portfolio"
+        title="Properties"
+        subtitle="Buildings and houses you rent out, with how many units are taken."
+        icon={Building2}
+        actions={<Badge tone="blue">{properties.length} total</Badge>}
+      />
 
-      <form onSubmit={add} className="grid gap-2 rounded-xl border border-gray-200 bg-white p-4 md:grid-cols-4">
-        <input
-          className="rounded border px-3 py-2"
-          placeholder="Property name"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          required
-        />
-        <input
-          className="rounded border px-3 py-2"
-          placeholder="Address"
-          value={form.address}
-          onChange={(e) => setForm({ ...form, address: e.target.value })}
-          required
-        />
-        <select
-          className="rounded border px-3 py-2"
-          value={form.type}
-          onChange={(e) => setForm({ ...form, type: e.target.value })}
-        >
-          <option value="apartment">Apartment</option>
-          <option value="house">House</option>
-          <option value="commercial">Commercial</option>
-        </select>
-        <button className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">Add property</button>
+      <form onSubmit={add} className="glass-card rounded-2xl p-4 sm:p-5">
+        <div className="grid gap-3 md:grid-cols-4">
+          <input
+            className={inputClass}
+            placeholder="Property name"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+          />
+          <input
+            className={inputClass}
+            placeholder="Address"
+            value={form.address}
+            onChange={(e) => setForm({ ...form, address: e.target.value })}
+            required
+          />
+          <select className={inputClass} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+            <option value="apartment">Apartment</option>
+            <option value="house">House</option>
+            <option value="commercial">Commercial</option>
+          </select>
+          <button className={btnPrimary} disabled={busy}>
+            <Plus className="h-4 w-4" /> {busy ? "Adding…" : "Add property"}
+          </button>
+        </div>
       </form>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <Alert>{error}</Alert>}
 
       {loading ? (
-        <p className="text-gray-500">Loading…</p>
+        <Loading label="Loading properties…" />
       ) : properties.length === 0 ? (
-        <p className="rounded-lg border border-gray-200 bg-white p-5 text-gray-600">
-          No properties yet. Add your first one above.
-        </p>
+        <EmptyState
+          icon={Building2}
+          title="No properties yet"
+          description="Add your first building above and it will show up here."
+        />
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {properties.map((p) => (
-            <div key={p._id} className="rounded-xl border border-gray-200 bg-white p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold">{p.name}</p>
-                  <p className="text-sm text-gray-500">{p.address}</p>
+          {properties.map((p) => {
+            const meta = typeMeta[p.type] || typeMeta.apartment;
+            const Icon = meta.icon;
+            return (
+              <article key={p._id} className="glass-card lift rounded-2xl p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500/15 to-indigo-500/10 text-blue-600">
+                      <Icon className="h-5 w-5" strokeWidth={1.9} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-slate-900">{p.name}</p>
+                      <p className="flex items-start gap-1.5 text-sm text-slate-600">
+                        <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                        <span className="truncate">{p.address}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => remove(p._id)}
+                    className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                    aria-label={`Delete ${p.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
-                <button onClick={() => remove(p._id)} className="text-sm text-red-600 hover:underline">
-                  Delete
-                </button>
-              </div>
-              <p className="mt-3 text-sm text-gray-600 capitalize">
-                {p.type} · {p.occupiedCount}/{p.unitCount} units occupied
-              </p>
-            </div>
-          ))}
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Badge tone={meta.tone}>{p.type}</Badge>
+                  <Badge tone="slate">
+                    <DoorOpen className="h-3.5 w-3.5" />
+                    {p.occupiedCount}/{p.unitCount} units occupied
+                  </Badge>
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
     </main>

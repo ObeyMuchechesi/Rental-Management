@@ -14,6 +14,13 @@ export default auth((req) => {
     return Response.redirect(url);
   }
 
+  // Approvals are the landlord's job — keep tenants out of that screen.
+  const landlordOnly = ["/approvals", "/properties", "/units", "/tenants", "/leases"];
+  const isTenant = req.auth?.user?.role === "tenant";
+  if (isTenant && landlordOnly.includes(pathname)) {
+    return Response.redirect(new URL("/dashboard", req.nextUrl.origin));
+  }
+
   return undefined;
 });
 

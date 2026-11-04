@@ -1,26 +1,25 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { Wallet, CircleCheck, Clock, Undo2, ReceiptText, CalendarDays } from "lucide-react";
+import { Alert, Badge, EmptyState, Loading, PageHeader, StatCard, btnGhost, btnSmall } from "@/app/components/ui";
 
-const badge = (status) =>
-  status === "paid"
-    ? "bg-green-100 text-green-700"
-    : new Date(status) && status === "late"
-      ? "bg-red-100 text-red-700"
-      : "bg-yellow-100 text-yellow-700";
+const statusTone = { paid: "green", pending: "amber", late: "red" };
 
 export default function PaymentsPage() {
   const { data: session } = useSession();
   const [payments, setPayments] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState("");
 
   const load = async () => {
     setLoading(true);
     const res = await fetch("/api/payments");
     const data = await res.json();
     if (!res.ok) setError(data.error || "Failed to load payments");
-    else setPayments(data);
+    else setPayments(Array.isArray(data) ? data : []);
     setLoading(false);
   };
 
@@ -30,11 +29,13 @@ export default function PaymentsPage() {
 
   const setStatus = async (id, status) => {
     setError("");
+    setBusy(id);
     const res = await fetch(`/api/payments/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
+    setBusy("");
     if (!res.ok) setError((await res.json()).error || "Could not update payment");
     else load();
   };
@@ -44,57 +45,66 @@ export default function PaymentsPage() {
   const pending = payments.filter((p) => p.status !== "paid").reduce((s, p) => s + p.amount, 0);
 
   return (
-    <main className="space-y-6">
-      <h1 className="text-2xl font-bold">{isLandlord ? "Payments" : "My Payments"}</h1>
+    <main className="space-y-5 pb-10">
+      <PageHeader
+        eyebrow="Money"
+        title={isLandlord ? "Payments" : "My payments"}
+        subtitle={isLandlord ? "Every rent invoice across your portfolio." : "Your rent invoices and what is still owed."}
+        icon={Wallet}
+        actions={<Badge tone="blue">{payments.length} invoices</Badge>}
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <p className="text-sm text-gray-500">Paid</p>
-          <p className="text-2xl font-bold text-green-600">${paid.toFixed(2)}</p>
-        </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <p className="text-sm text-gray-500">Outstanding</p>
-          <p className="text-2xl font-bold text-red-600">${pending.toFixed(2)}</p>
-        </div>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <StatCard icon={CircleCheck} label="Paid" value={`$${paid.toFixed(2)}`} tone="green" />
+        <StatCard icon={Clock} label="Outstanding" value={`$${pending.toFixed(2)}`} tone={pending ? "red" : "green"} />
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <Alert>{error}</Alert>}
 
       {loading ? (
-        <p className="text-gray-500">Loading…</p>
+        <Loading label="Loading payments…" />
       ) : payments.length === 0 ? (
-        <p className="rounded-lg border border-gray-200 bg-white p-5 text-gray-600">No payments recorded yet.</p>
+        <EmptyState icon={ReceiptText} title="No payments recorded" description="Rent invoices appear here once a lease exists." />
       ) : (
-        <div className="divide-y rounded-xl border border-gray-200 bg-white">
+        <div className="space-y-3">
           {payments.map((p) => (
-            <div key={p._id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-              <div>
-                <p className="font-medium">
-                  ${p.amount.toFixed(2)}
-                  {isLandlord && p.lease?.tenant?.name ? ` · ${p.lease.tenant.name}` : ""}
-                  {p.lease?.unit?.label ? ` · ${p.lease.unit.label}` : ""}
-                </p>
-                <p className="text-sm text-gray-500">
-                  Due {new Date(p.dueDate).toLocaleDateString()}
-                  {p.paidDate ? ` · paid ${new Date(p.paidDate).toLocaleDateString()}` : ""}
-                </p>
+            <article key={p._id} className="glass-card rounded-2xl p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-lg font-semibold text-slate-900">${p.amount.toFixed(2)}</p>
+                  <p className="mt-0.5 truncate text-sm text-slate-600">
+                    {isLandlord && p.lease?.tenant?.name ? `${p.lease.tenant.name} · ` : ""}
+                    {p.lease?.unit?.property?.name ? `${p.lease.unit.property.name} · ` : ""}
+                    {p.lease?.unit?.label || ""}
+                  </p>
+                  <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    Due {new Date(p.dueDate).toLocaleDateString()}
+                    {p.paidDate ? ` · paid ${new Date(p.paidDate).toLocaleDateString()}` : ""}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge tone={statusTone[p.status] || "slate"}>{p.status}</Badge>
+                  {p.status !== "paid" ? (
+                    <button
+                      onClick={() => setStatus(p._id, "paid")}
+                      disabled={busy === p._id}
+                      className={`${btnSmall} bg-emerald-600 text-white shadow-sm transition hover:bg-emerald-700`}
+                    >
+                      <CircleCheck className="h-3.5 w-3.5" /> Mark paid
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setStatus(p._id, "pending")}
+                      disabled={busy === p._id}
+                      className={`${btnSmall} text-slate-500 hover:bg-white/70`}
+                    >
+                      <Undo2 className="h-3.5 w-3.5" /> Undo
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className={`rounded px-2 py-0.5 text-xs ${badge(p.status)}`}>{p.status}</span>
-                {p.status !== "paid" ? (
-                  <button
-                    onClick={() => setStatus(p._id, "paid")}
-                    className="rounded bg-green-600 px-3 py-1 text-sm text-white hover:bg-green-700"
-                  >
-                    Mark paid
-                  </button>
-                ) : (
-                  <button onClick={() => setStatus(p._id, "pending")} className="text-sm text-gray-500 hover:underline">
-                    Undo
-                  </button>
-                )}
-              </div>
-            </div>
+            </article>
           ))}
         </div>
       )}

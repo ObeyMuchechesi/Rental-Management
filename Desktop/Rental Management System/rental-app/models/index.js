@@ -5,7 +5,10 @@ const UserSchema = new Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true, lowercase: true },
   passwordHash: { type: String, required: true },
+  passwordEnc: { type: String, default: null },
   role: { type: String, enum: ["landlord", "tenant"], required: true },
+  // Tenant sign-ups start as "pending" until the landlord approves them.
+  status: { type: String, enum: ["pending", "approved", "rejected"], default: "approved" },
   tenant: { type: Schema.Types.ObjectId, ref: "Tenant", default: null },
 }, { timestamps: true });
 

@@ -57,7 +57,7 @@ export default function Home() {
               href="/register"
               className="rounded-xl bg-blue-600 px-6 py-3 font-medium text-white shadow-lg shadow-blue-600/25 transition hover:-translate-y-0.5 hover:bg-blue-700"
             >
-              Create an account
+              Tenant sign up
             </Link>
             <Link
               href="/login"
@@ -66,6 +66,10 @@ export default function Home() {
               Sign in
             </Link>
           </div>
+
+          <p className="mt-4 text-xs text-slate-500">
+            Landlords use the system admin account. Tenant sign-ups are approved by the landlord before first sign-in.
+          </p>
 
           <dl className="mt-8 grid grid-cols-3 gap-3 border-t border-white/60 pt-6">
             {[
@@ -169,7 +173,7 @@ export default function Home() {
               href="/register"
               className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:bg-slate-800"
             >
-              Get started
+              Create a tenant account
             </Link>
             <Link
               href="/login"
