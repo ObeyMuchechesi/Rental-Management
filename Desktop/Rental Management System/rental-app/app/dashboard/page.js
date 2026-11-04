@@ -1,21 +1,26 @@
 "use client";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 
 function Card({ label, value, tone = "gray" }) {
   const tones = {
-    gray: "text-gray-900",
+    gray: "text-slate-900",
     green: "text-green-600",
     red: "text-red-600",
-    yellow: "text-yellow-600",
+    yellow: "text-amber-600",
     blue: "text-blue-600",
   };
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4">
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className={`mt-1 text-2xl font-bold ${tones[tone]}`}>{value}</p>
+    <div className="glass-card lift rounded-2xl p-5">
+      <p className="text-xs font-medium uppercase tracking-wider text-slate-500">{label}</p>
+      <p className={`mt-2 text-2xl font-bold ${tones[tone]}`}>{value}</p>
     </div>
   );
+}
+
+function Shell({ children }) {
+  return <main className="space-y-6 pb-10">{children}</main>;
 }
 
 export default function DashboardPage() {
@@ -34,46 +39,65 @@ export default function DashboardPage() {
 
   if (error) {
     return (
-      <main className="space-y-4">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p>
-      </main>
+      <Shell>
+        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+        <p className="rounded-xl border border-red-200/70 bg-red-50/70 p-4 text-sm text-red-700 backdrop-blur">
+          {error}
+        </p>
+      </Shell>
     );
   }
 
   if (!data) {
     return (
-      <main className="space-y-4">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-gray-500">Loading…</p>
-      </main>
+      <Shell>
+        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+        <p className="glass-card rounded-2xl p-5 text-sm text-slate-500">Loading…</p>
+      </Shell>
     );
   }
 
   if (data.role === "tenant") {
     return (
-      <main className="space-y-6">
-        <h1 className="text-2xl font-bold">My Dashboard</h1>
+      <Shell>
+        <div className="glass relative overflow-hidden rounded-[1.75rem] p-6 md:p-7">
+          <div className="absolute inset-0 -z-10">
+            <Image
+              src="/house.jpg"
+              alt=""
+              fill
+              sizes="100vw"
+              className="object-cover opacity-40"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-white/85 via-white/60 to-white/20" />
+          </div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">Tenant portal</p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">My Dashboard</h1>
+        </div>
 
         {data.lease ? (
-          <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <p className="text-sm text-gray-500">Current lease</p>
-            <p className="mt-1 text-lg font-semibold">
+          <div className="glass rounded-2xl p-6">
+            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Current lease</p>
+            <p className="mt-2 text-lg font-semibold text-slate-900">
               {data.lease.unit?.property?.name} · {data.lease.unit?.label}
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-slate-600">
               {new Date(data.lease.startDate).toLocaleDateString()} →{" "}
               {new Date(data.lease.endDate).toLocaleDateString()} · ${data.lease.monthlyRent}/mo
             </p>
           </div>
         ) : (
-          <p className="rounded-lg border border-gray-200 bg-white p-5 text-gray-600">
+          <p className="glass rounded-2xl p-6 text-slate-600">
             You don&apos;t have an active lease yet. Your landlord will set one up.
           </p>
         )}
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card label="Outstanding" value={`$${data.outstanding.toFixed(2)}`} tone={data.outstanding ? "red" : "green"} />
+          <Card
+            label="Outstanding"
+            value={`$${data.outstanding.toFixed(2)}`}
+            tone={data.outstanding ? "red" : "green"}
+          />
           <Card
             label="Next payment due"
             value={data.nextPayment ? new Date(data.nextPayment.dueDate).toLocaleDateString() : "—"}
@@ -83,20 +107,41 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <Link href="/payments" className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+          <Link
+            href="/payments"
+            className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition hover:-translate-y-0.5 hover:bg-blue-700"
+          >
             View payments
           </Link>
-          <Link href="/maintenance" className="rounded-lg border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50">
+          <Link
+            href="/maintenance"
+            className="glass-soft rounded-xl px-5 py-2.5 text-sm font-medium text-slate-800 transition hover:bg-white/70"
+          >
             Maintenance requests
           </Link>
         </div>
-      </main>
+      </Shell>
     );
   }
 
   return (
-    <main className="space-y-6">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
+    <Shell>
+      <div className="glass relative overflow-hidden rounded-[1.75rem] p-6 md:p-7">
+        <div className="absolute inset-0 -z-10">
+          <Image src="/house.jpg" alt="" fill sizes="100vw" className="object-cover opacity-40" />
+          <div className="absolute inset-0 bg-gradient-to-r from-white/90 via-white/65 to-white/20" />
+        </div>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">Portfolio overview</p>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">Dashboard</h1>
+            <p className="mt-1 text-sm text-slate-600">Occupancy, rent and maintenance at a glance.</p>
+          </div>
+          <span className="glass-soft rounded-full px-3 py-1.5 text-xs font-semibold text-slate-700">
+            {data.occupancyRate}% occupied
+          </span>
+        </div>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card label="Properties" value={data.totalProperties} />
@@ -118,13 +163,19 @@ export default function DashboardPage() {
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <Link href="/properties" className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+        <Link
+          href="/properties"
+          className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition hover:-translate-y-0.5 hover:bg-blue-700"
+        >
           Manage properties
         </Link>
-        <Link href="/leases" className="rounded-lg border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50">
+        <Link
+          href="/leases"
+          className="glass-soft rounded-xl px-5 py-2.5 text-sm font-medium text-slate-800 transition hover:bg-white/70"
+        >
           Create a lease
         </Link>
       </div>
-    </main>
+    </Shell>
   );
 }
