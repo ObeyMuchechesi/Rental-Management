@@ -51,7 +51,7 @@ export default function PaymentsPage() {
         title={isLandlord ? "Payments" : "My payments"}
         subtitle={isLandlord ? "Every rent invoice across your portfolio." : "Your rent invoices and what is still owed."}
         icon={Wallet}
-        actions={<Badge tone="blue">{payments.length} invoices</Badge>}
+        actions={<Badge tone="blue">{payments.length} invoice{payments.length === 1 ? "" : "s"}</Badge>}
       />
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4">

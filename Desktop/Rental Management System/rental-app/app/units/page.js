@@ -65,7 +65,7 @@ export default function UnitsPage() {
         title="Units"
         subtitle="The individual spaces inside each property and what they rent for."
         icon={DoorOpen}
-        actions={<Badge tone="blue">{units.length} units</Badge>}
+        actions={<Badge tone="blue">{units.length} unit{units.length === 1 ? "" : "s"}</Badge>}
       />
 
       <form onSubmit={submit} className="glass-card rounded-2xl p-4 sm:p-5">
