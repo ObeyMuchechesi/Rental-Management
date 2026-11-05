@@ -14,7 +14,16 @@ export const GET = route(async () => {
     .sort({ createdAt: -1 })
     .lean();
 
-  return json(units);
+  // Show who lives in each occupied unit so the grid doubles as an assignment map.
+  const leases = await Lease.find({ unit: { $in: units.map((u) => u._id) }, status: "active" })
+    .populate("tenant", "name email")
+    .lean();
+  const byUnit = leases.reduce((acc, l) => {
+    acc[l.unit.toString()] = { name: l.tenant?.name || null, id: l.tenant?._id?.toString() || null, leaseId: l._id.toString() };
+    return acc;
+  }, {});
+
+  return json(units.map((u) => ({ ...u, tenant: byUnit[u._id.toString()] || null })));
 });
 
 export const POST = route(async (req) => {

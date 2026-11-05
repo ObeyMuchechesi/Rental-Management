@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DoorOpen, Plus, BedDouble, Bath, Building2, DollarSign } from "lucide-react";
+import Link from "next/link";
+import { DoorOpen, Plus, BedDouble, Bath, Building2, DollarSign, UserRound, ChevronRight } from "lucide-react";
 import { Alert, Badge, EmptyState, Loading, PageHeader, btnPrimary, inputClass } from "@/app/components/ui";
 
 const statusTone = { occupied: "green", vacant: "slate", maintenance: "amber" };
@@ -25,6 +26,17 @@ export default function UnitsPage() {
   useEffect(() => {
     load();
   }, []);
+
+  const changeStatus = async (unit, status) => {
+    setError("");
+    const res = await fetch("/api/units", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: unit._id, label: unit.label, rentAmount: unit.rentAmount, status }),
+    });
+    if (!res.ok) return setError((await res.json()).error || "Could not update the unit status");
+    load();
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -122,6 +134,13 @@ export default function UnitsPage() {
                   <DollarSign className="h-3.5 w-3.5" />
                   {u.rentAmount}/mo
                 </Badge>
+                {u.tenant?.name ? (
+                  <Link href={`/tenants/${u.tenant.id}`} className="inline-flex items-center gap-1 rounded-full bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-blue-700 shadow-sm transition hover:bg-white">
+                    <UserRound className="h-3.5 w-3.5" />
+                    {u.tenant.name}
+                    <ChevronRight className="h-3 w-3" />
+                  </Link>
+                ) : null}
                 {u.bedrooms ? (
                   <Badge tone="slate">
                     <BedDouble className="h-3.5 w-3.5" />
@@ -135,6 +154,22 @@ export default function UnitsPage() {
                   </Badge>
                 ) : null}
               </div>
+
+              {u.tenant?.name ? (
+                <p className="mt-3 text-xs text-slate-500">Assign through the tenant, or end their lease to free the unit.</p>
+              ) : (
+                <label className="mt-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Status
+                  <select
+                    className={`${inputClass} w-auto py-1.5 text-sm font-medium normal-case tracking-normal`}
+                    value={u.status}
+                    onChange={(e) => changeStatus(u, e.target.value)}
+                  >
+                    <option value="vacant">Vacant</option>
+                    <option value="maintenance">Maintenance</option>
+                  </select>
+                </label>
+              )}
             </article>
           ))}
         </div>

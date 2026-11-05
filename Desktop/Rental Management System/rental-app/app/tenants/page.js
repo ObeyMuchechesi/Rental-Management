@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Users, UserPlus, Mail, Phone, ShieldCheck } from "lucide-react";
+import { Users, UserPlus, Mail, Phone, ShieldCheck, ChevronRight, DoorOpen, Building2 } from "lucide-react";
 import { Alert, Badge, EmptyState, PageHeader, btnGhost, btnPrimary, inputClass } from "@/app/components/ui";
 
 export default function TenantsPage() {
@@ -85,12 +85,19 @@ export default function TenantsPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {tenants.map((t) => (
-            <article key={t._id} className="glass-card lift flex items-start gap-3 rounded-2xl p-4">
+            <Link
+              key={t._id}
+              href={`/tenants/${t._id}`}
+              className="glass-card lift group flex items-start gap-3 rounded-2xl p-4"
+            >
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-sm font-bold uppercase text-white">
                 {t.name?.slice(0, 1) || "?"}
               </span>
-              <div className="min-w-0">
-                <p className="truncate font-semibold text-slate-900">{t.name}</p>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="truncate font-semibold text-slate-900">{t.name}</p>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-blue-600" />
+                </div>
                 <p className="flex items-center gap-1.5 truncate text-sm text-slate-600">
                   <Mail className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                   <span className="truncate">{t.email}</span>
@@ -100,13 +107,25 @@ export default function TenantsPage() {
                     <Phone className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                     {t.phone}
                   </p>
-                ) : (
-                  <Badge tone="slate" className="mt-1">
-                    No phone
+                ) : null}
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <Badge tone={t.accountStatus === "approved" ? "green" : t.accountStatus === "pending" ? "amber" : t.accountStatus === "rejected" ? "red" : "slate"}>
+                    {t.accountStatus === "none" ? "no account" : t.accountStatus}
                   </Badge>
-                )}
+                  {t.activeUnit ? (
+                    <Badge tone="blue">
+                      <DoorOpen className="h-3.5 w-3.5" />
+                      {t.activeProperty ? `${t.activeProperty} · ` : ""}
+                      {t.activeUnit}
+                    </Badge>
+                  ) : (
+                    <Badge tone="slate">
+                      <Building2 className="h-3.5 w-3.5" /> unassigned
+                    </Badge>
+                  )}
+                </div>
               </div>
-            </article>
+            </Link>
           ))}
         </div>
       )}
