@@ -1,4 +1,6 @@
 import { auth } from "./auth";
+import { connectDB } from "./db";
+import { Tenant, User } from "@/models";
 
 export class HttpError extends Error {
   constructor(status, message) {
@@ -12,6 +14,32 @@ export async function requireUser() {
   const session = await auth();
   if (!session?.user?.id) throw new HttpError(401, "Not signed in");
   return session.user;
+}
+
+/**
+ * Tenancy record behind a signed-in tenant account.
+ *
+ * The session token is stamped at sign-in, so a tenancy the landlord assigns
+ * afterwards would otherwise stay invisible until the tenant signs out and
+ * back in. Resolve it from the database on every request instead, linking the
+ * account by email when it isn't attached to a tenancy yet.
+ */
+export async function currentTenantId(user) {
+  if (user?.role !== "tenant") return null;
+  await connectDB();
+
+  const account = await User.findById(user.id).select("tenant email").lean();
+  if (!account) return null;
+
+  if (account.tenant && (await Tenant.exists({ _id: account.tenant }))) {
+    return account.tenant.toString();
+  }
+
+  const tenant = await Tenant.findOne({ email: account.email }).sort({ createdAt: -1 }).select("_id").lean();
+  if (!tenant) return null;
+
+  await User.updateOne({ _id: account._id }, { $set: { tenant: tenant._id } });
+  return tenant._id.toString();
 }
 
 /** Returns the session user only when they are a landlord, else throws. */

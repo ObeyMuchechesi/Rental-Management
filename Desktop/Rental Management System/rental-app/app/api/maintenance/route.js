@@ -1,6 +1,6 @@
 import { connectDB } from "@/lib/db";
 import { Property, Unit, Lease, Maintenance } from "@/models";
-import { assert, json, route, requireUser, HttpError } from "@/lib/api";
+import { assert, json, route, requireUser, currentTenantId, HttpError } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -9,8 +9,9 @@ export const GET = route(async () => {
   await connectDB();
 
   if (user.role === "tenant") {
-    if (!user.tenantId) return json([]);
-    const requests = await Maintenance.find({ tenant: user.tenantId })
+    const tenantId = await currentTenantId(user);
+    if (!tenantId) return json([]);
+    const requests = await Maintenance.find({ tenant: tenantId })
       .populate("unit", "label")
       .sort({ createdAt: -1 })
       .lean();
@@ -39,11 +40,12 @@ export const POST = route(async (req) => {
   let tenantId = null;
 
   if (user.role === "tenant") {
-    if (!user.tenantId) throw new HttpError(400, "Your account is not linked to a tenancy yet");
-    const lease = await Lease.findOne({ tenant: user.tenantId, status: "active" });
+    const linkedTenantId = await currentTenantId(user);
+    if (!linkedTenantId) throw new HttpError(400, "Your account is not linked to a tenancy yet");
+    const lease = await Lease.findOne({ tenant: linkedTenantId, status: "active" });
     if (!lease) throw new HttpError(400, "You need an active lease to file a request");
     unitId = lease.unit;
-    tenantId = user.tenantId;
+    tenantId = linkedTenantId;
   } else {
     if (!unitId) throw new HttpError(400, "Choose a unit for this request");
     const properties = await Property.find({ owner: user.id }).select("_id").lean();

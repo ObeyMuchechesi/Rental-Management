@@ -1,6 +1,6 @@
 import { connectDB } from "@/lib/db";
 import { Property, Unit, Lease, Payment, Maintenance } from "@/models";
-import { json, route, requireUser } from "@/lib/api";
+import { json, route, requireUser, currentTenantId } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -13,8 +13,10 @@ export const GET = route(async () => {
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
   if (user.role === "tenant") {
-    const lease = user.tenantId
-      ? await Lease.findOne({ tenant: user.tenantId, status: "active" })
+    const tenantId = await currentTenantId(user);
+
+    const lease = tenantId
+      ? await Lease.findOne({ tenant: tenantId, status: "active" })
           .populate({ path: "unit", select: "label", populate: { path: "property", select: "name address" } })
           .lean()
       : null;
@@ -22,8 +24,8 @@ export const GET = route(async () => {
     const payments = lease
       ? await Payment.find({ lease: lease._id }).sort({ dueDate: 1 }).lean()
       : [];
-    const requests = user.tenantId
-      ? await Maintenance.find({ tenant: user.tenantId }).sort({ createdAt: -1 }).lean()
+    const requests = tenantId
+      ? await Maintenance.find({ tenant: tenantId }).sort({ createdAt: -1 }).lean()
       : [];
 
     const outstanding = payments

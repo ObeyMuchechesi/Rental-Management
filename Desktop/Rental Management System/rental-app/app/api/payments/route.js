@@ -1,6 +1,6 @@
 import { connectDB } from "@/lib/db";
 import { Property, Unit, Lease, Payment } from "@/models";
-import { assert, json, route, requireUser, requireLandlord, HttpError } from "@/lib/api";
+import { assert, json, route, requireUser, requireLandlord, currentTenantId, HttpError } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -9,8 +9,9 @@ export const GET = route(async () => {
   await connectDB();
 
   if (user.role === "tenant") {
-    if (!user.tenantId) return json([]);
-    const leases = await Lease.find({ tenant: user.tenantId }).select("_id").lean();
+    const tenantId = await currentTenantId(user);
+    if (!tenantId) return json([]);
+    const leases = await Lease.find({ tenant: tenantId }).select("_id").lean();
     const payments = await Payment.find({ lease: { $in: leases.map((l) => l._id) } })
       .populate({ path: "lease", select: "unit", populate: { path: "unit", select: "label" } })
       .sort({ dueDate: 1 })

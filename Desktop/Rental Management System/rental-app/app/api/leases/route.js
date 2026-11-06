@@ -1,7 +1,7 @@
 import { connectDB } from "@/lib/db";
-import { Property, Unit, Tenant, Lease, Payment } from "@/models";
+import { Property, Unit, Tenant, Lease, User } from "@/models";
 import { generatePaymentsForLease } from "@/lib/payments";
-import { assert, json, route, requireUser, requireLandlord, HttpError } from "@/lib/api";
+import { assert, json, route, requireUser, requireLandlord, currentTenantId, HttpError } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -10,8 +10,9 @@ export const GET = route(async () => {
   await connectDB();
 
   if (user.role === "tenant") {
-    if (!user.tenantId) return json([]);
-    const leases = await Lease.find({ tenant: user.tenantId })
+    const tenantId = await currentTenantId(user);
+    if (!tenantId) return json([]);
+    const leases = await Lease.find({ tenant: tenantId })
       .populate("unit", "label rentAmount")
       .populate({ path: "unit", populate: { path: "property", select: "name address" } })
       .sort({ createdAt: -1 })
@@ -66,6 +67,14 @@ export const POST = route(async (req) => {
 
   unit.status = "occupied";
   await unit.save();
+
+  // Attach the tenant's login account to this tenancy straight away so the new
+  // lease shows up in their portal on the next page load, not just after their
+  // next sign-in.
+  await User.updateOne(
+    { email: tenant.email, role: "tenant" },
+    { $set: { tenant: tenant._id } },
+  );
 
   await generatePaymentsForLease(lease);
 

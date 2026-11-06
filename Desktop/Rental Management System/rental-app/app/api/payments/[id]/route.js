@@ -1,6 +1,6 @@
 import { connectDB } from "@/lib/db";
 import { Property, Unit, Lease, Payment } from "@/models";
-import { json, route, requireUser, HttpError } from "@/lib/api";
+import { json, route, requireUser, currentTenantId, HttpError } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export const PATCH = route(async (req, { params }) => {
 
   let allowed = false;
   if (user.role === "tenant") {
-    allowed = payment.lease?.tenant?.toString() === user.tenantId;
+    allowed = payment.lease?.tenant?.toString() === (await currentTenantId(user));
   } else {
     const properties = await Property.find({ owner: user.id }).select("_id").lean();
     const units = await Unit.find({ property: { $in: properties.map((p) => p._id) } }).select("_id").lean();
