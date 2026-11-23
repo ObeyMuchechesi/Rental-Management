@@ -45,6 +45,9 @@ app.use(async (req, res, next) => {
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
 app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '7d', immutable: false }));
 
+// SEO routes (dynamic sitemap and robots)
+app.use('/', require('./routes/sitemap'));
+
 // API routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api', require('./routes/inquiries'));

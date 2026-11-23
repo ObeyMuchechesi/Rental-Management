@@ -4,6 +4,7 @@ import { api, waLink, track, WHATSAPP_MESSAGE } from '../api';
 import { useSettings } from '../SettingsContext';
 import InquiryForm from '../components/InquiryForm';
 import CTASection from '../components/CTASection';
+import SEO from '../components/SEO';
 import collageImg from '../assets/collage-prime.jpg';
 
 export default function Contact() {
@@ -19,14 +20,39 @@ export default function Contact() {
   const phoneHref = `tel:${settings.phone.replace(/[^0-9+]/g, '')}`;
   const waHref = waLink(settings.whatsappNumber, WHATSAPP_MESSAGE);
 
+  const contactSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'ContactPage',
+    name: `Contact ${settings.brandName}`,
+    mainEntity: {
+      '@type': 'ProfessionalService',
+      name: settings.brandName,
+      telephone: settings.phone,
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: 'Harare',
+        addressCountry: 'ZW',
+      },
+    },
+  };
+
   return (
     <>
+      <SEO
+        title={`Contact Us | ${settings.brandName} Harare Zimbabwe`}
+        description={`Get in touch with ${settings.brandName} in Harare, Zimbabwe. Contact us via WhatsApp (${settings.whatsappNumber}), phone (${settings.phoneDisplay || settings.phone}), or submit an online consultation inquiry.`}
+        canonical="/contact"
+        breadcrumbs={[
+          { name: 'Home', url: '/' },
+          { name: 'Contact Us', url: '/contact' },
+        ]}
+        schema={contactSchema}
+      />
       <section className="relative overflow-hidden bg-brand-950 py-16 lg:py-20">
         {/* Full-bleed photo backdrop, veiled so the copy stays readable */}
         <img
           src={collageImg}
-          alt=""
-          aria-hidden="true"
+          alt="Contact Prime Access Immigration Consultancy Firm Harare Zimbabwe"
           className="absolute inset-0 h-full w-full object-cover object-center"
         />
         <div className="absolute inset-0 bg-brand-950/50" />

@@ -53,7 +53,7 @@ export default function Navbar() {
         <div className="container-x flex h-[72px] items-center justify-between gap-2 sm:gap-4">
           <Link to="/" className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5" onClick={() => setOpen(false)}>
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-950 p-0.5 ring-1 ring-gold-500/40 sm:h-11 sm:w-11 sm:p-1.5">
-              <img src={logoMark} alt="" aria-hidden="true" className="h-full w-full object-contain" />
+              <img src={logoMark} alt={`${settings.brandName || 'Prime Access'} Logo`} className="h-full w-full object-contain" />
             </span>
             <span className="min-w-0 leading-tight">
               <span className="block truncate font-display text-base font-extrabold tracking-tight text-brand-950 sm:text-xl">

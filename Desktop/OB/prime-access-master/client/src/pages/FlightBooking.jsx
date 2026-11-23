@@ -8,6 +8,7 @@ import { api, waLink, track } from '../api';
 import { useSettings } from '../SettingsContext';
 import SectionHeading from '../components/SectionHeading';
 import CTASection from '../components/CTASection';
+import SEO from '../components/SEO';
 
 const ASSISTANCE = [
   { icon: Plane, title: 'International & regional flight bookings', text: 'Seats on the routes that suit your plans, whether you are travelling near or far.' },
@@ -135,8 +136,31 @@ export default function FlightBooking() {
   const waHref = waLink(settings.whatsappNumber, DEFAULT_WA_MESSAGE);
   const phoneHref = `tel:${settings.phone.replace(/[^0-9+]/g, '')}`;
 
+  const flightSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    name: 'Flight Booking Assistance',
+    description: 'International and regional flight bookings tailored to your visa timeline, preferred dates and budget.',
+    provider: {
+      '@type': 'ProfessionalService',
+      name: settings.brandName,
+      url: 'https://primeaccess.co.zw/',
+    },
+    areaServed: 'ZW',
+  };
+
   return (
     <>
+      <SEO
+        title={`Flight Booking Assistance | ${settings.brandName}`}
+        description="Book international and regional flights with Prime Access. We align airline schedules and competitive fares with your visa timeline for UK, Europe, Australia and global destinations."
+        canonical="/flight-booking"
+        breadcrumbs={[
+          { name: 'Home', url: '/' },
+          { name: 'Flight Booking', url: '/flight-booking' },
+        ]}
+        schema={flightSchema}
+      />
       {/* ===== HERO ===== */}
       <section className="relative overflow-hidden bg-brand-950 py-16 lg:py-20">
         <img

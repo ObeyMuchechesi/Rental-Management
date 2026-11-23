@@ -14,5 +14,7 @@ dist/
 .vercel
 .env*
 
+.freebuff/
+
 # local image tooling
 .tools/

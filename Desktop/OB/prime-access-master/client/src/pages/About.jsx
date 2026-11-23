@@ -1,6 +1,7 @@
 import { Target, HeartHandshake, ShieldCheck, Eye, Users, Compass, Award } from 'lucide-react';
 import { useSettings } from '../SettingsContext';
 import SectionHeading from '../components/SectionHeading';
+import SEO from '../components/SEO';
 import logoFull from '../assets/logo-full.png';
 import manImg from '../assets/man-passport.jpg';
 import indiaImg from '../assets/india-journeys.jpg';
@@ -11,14 +12,39 @@ export default function About() {
   const { settings } = useSettings();
   if (!settings) return null;
 
+  const aboutSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'AboutPage',
+    name: `About ${settings.brandName}`,
+    description: settings.aboutIntro,
+    mainEntity: {
+      '@type': 'ProfessionalService',
+      name: settings.brandName,
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: 'Harare',
+        addressCountry: 'ZW',
+      },
+    },
+  };
+
   return (
     <>
+      <SEO
+        title={`About Us | ${settings.brandName} Immigration Consultancy Firm`}
+        description="Learn about Prime Access Immigration Consultancy Firm in Harare, Zimbabwe. Dedicated consultants providing transparent, honest, and high-success visa advisory services."
+        canonical="/about"
+        breadcrumbs={[
+          { name: 'Home', url: '/' },
+          { name: 'About Us', url: '/about' },
+        ]}
+        schema={aboutSchema}
+      />
       <section className="relative overflow-hidden bg-brand-950 py-16 lg:py-20">
         {/* Full-bleed photo backdrop, veiled so the copy stays readable */}
         <img
           src={manImg}
-          alt=""
-          aria-hidden="true"
+          alt="Prime Access immigration consultant and client with travel documentation"
           className="absolute inset-0 h-full w-full object-cover object-[50%_20%] sm:object-[55%_15%]"
         />
         <div className="absolute inset-0 bg-brand-950/50" />

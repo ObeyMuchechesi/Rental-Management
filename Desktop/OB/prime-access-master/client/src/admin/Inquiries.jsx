@@ -64,7 +64,6 @@ export function MobileInquiryCard({ inquiry, onOpen, onRemove }) {
             href={hrefFor(a.key)}
             target={a.key === 'whatsapp' ? '_blank' : undefined}
             rel="noopener noreferrer"
-            onClick={() => track('whatsapp_click', { source: 'admin_reply' })}
             className={`flex flex-1 flex-col items-center justify-center gap-1 text-[10px] font-semibold ${a.bg}`}
             onClick={() => a.key === 'whatsapp' && track('whatsapp_click', { source: 'admin_reply' })}
           >

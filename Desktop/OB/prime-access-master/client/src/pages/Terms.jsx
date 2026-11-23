@@ -1,5 +1,6 @@
 import { useSettings } from '../SettingsContext';
 import { waLink } from '../api';
+import SEO from '../components/SEO';
 
 export default function Terms() {
   const { settings } = useSettings();
@@ -8,7 +9,17 @@ export default function Terms() {
   const waHref = waLink(settings?.whatsappNumber, 'Hi Prime Access, I have a question about your terms & conditions.');
 
   return (
-    <section className="py-16">
+    <>
+      <SEO
+        title={`Terms & Conditions | ${brand}`}
+        description={`Terms and Conditions for ${brand}. Guidelines for client consultations, application assistance, and advisory services.`}
+        canonical="/terms"
+        breadcrumbs={[
+          { name: 'Home', url: '/' },
+          { name: 'Terms & Conditions', url: '/terms' },
+        ]}
+      />
+      <section className="py-16">
       <div className="container-x max-w-3xl">
         <p className="text-xs font-bold uppercase tracking-[0.25em] text-gold-600">Legal</p>
         <h1 className="mt-2 font-display text-4xl font-bold text-brand-950">Terms & Conditions</h1>
@@ -57,5 +68,6 @@ export default function Terms() {
         </div>
       </div>
     </section>
+  </>
   );
 }

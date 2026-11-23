@@ -34,19 +34,6 @@ function PublicShell({ children }) {
     trackPageView();
   }, [location.pathname]);
 
-  useEffect(() => {
-    if (settings?.seoTitle) document.title = settings.seoTitle;
-    if (settings?.seoDescription) {
-      let meta = document.querySelector('meta[name="description"]');
-      if (!meta) {
-        meta = document.createElement('meta');
-        meta.name = 'description';
-        document.head.appendChild(meta);
-      }
-      meta.content = settings.seoDescription;
-    }
-  }, [settings]);
-
   return (
     <div className="flex min-h-screen flex-col">
       <AnnouncementBar />

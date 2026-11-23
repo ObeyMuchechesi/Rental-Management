@@ -1,0 +1,11 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+
+# Host and Sitemaps
+Host: https://primeaccess.co.zw
+Sitemap: https://primeaccess.co.zw/sitemap.xml
+Sitemap: https://prime-access.vercel.app/sitemap.xml

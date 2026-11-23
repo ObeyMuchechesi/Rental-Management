@@ -26,7 +26,7 @@ export default function ServiceCard({ service }) {
         <div className="relative h-44 overflow-hidden">
           <img
             src={service.image}
-            alt={service.title}
+            alt={`${service.title} - Prime Access Immigration Consultancy`}
             loading="lazy"
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />

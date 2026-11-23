@@ -5,6 +5,7 @@ import { api, waLink, track } from '../api';
 import { useSettings } from '../SettingsContext';
 import InquiryForm from '../components/InquiryForm';
 import CTASection from '../components/CTASection';
+import SEO from '../components/SEO';
 
 const ICONS = {
   compass: Compass, plane: Plane, graduation: GraduationCap, briefcase: Briefcase,
@@ -44,8 +45,44 @@ export default function ServiceDetail() {
   const waMessage = service.whatsappMessage || `Hi Prime Access, I need help with ${service.title}.`;
   const related = services.filter((s) => s._id !== service._id).slice(0, 3);
 
+  const serviceSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    name: service.title,
+    description: service.description || service.shortDescription,
+    provider: {
+      '@type': 'ProfessionalService',
+      name: settings.brandName,
+      url: 'https://primeaccess.co.zw/',
+    },
+    areaServed: 'ZW',
+    hasOfferCatalog: {
+      '@type': 'OfferCatalog',
+      name: service.title,
+      itemListElement: (service.features || []).map((f) => ({
+        '@type': 'Offer',
+        itemOffered: {
+          '@type': 'Service',
+          name: f,
+        },
+      })),
+    },
+  };
+
   return (
     <>
+      <SEO
+        title={`${service.title} | ${settings.brandName}`}
+        description={service.shortDescription || service.description}
+        canonical={`/services/${slug}`}
+        ogImage={service.image}
+        breadcrumbs={[
+          { name: 'Home', url: '/' },
+          { name: 'Services', url: '/services' },
+          { name: service.title, url: `/services/${slug}` },
+        ]}
+        schema={serviceSchema}
+      />
       <section className="bg-brand-950 py-14 lg:py-16">
         <div className="container-x">
           <button onClick={() => navigate(-1)} className="mb-6 flex items-center gap-2 text-sm font-medium text-brand-300 hover:text-white">

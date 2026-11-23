@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   MessageCircle, Phone, FileText, CalendarCheck, ShieldCheck, Clock, Award, Users,
-  Star, MapPin, ArrowRight, Sparkles, Plane, Ticket,
+  Star, MapPin, ArrowRight, Sparkles, Plane, Ticket, ChevronDown, HelpCircle,
 } from 'lucide-react';
 import { api, waLink, track, WHATSAPP_MESSAGE } from '../api';
 import { useSettings } from '../SettingsContext';
@@ -11,8 +11,45 @@ import VideoBlock from '../components/VideoBlock';
 import InquiryForm from '../components/InquiryForm';
 import SectionHeading from '../components/SectionHeading';
 import CTASection from '../components/CTASection';
+import SEO from '../components/SEO';
 import womanImg from '../assets/woman-passport.jpg';
 import collageImg from '../assets/collage-prime.jpg';
+
+const FAQS = [
+  {
+    q: 'What visa and immigration services does Prime Access provide?',
+    a: 'Prime Access provides professional guidance and submission support for UK visas (work, study, visitor, settlement), Schengen tourist and business visas, student university placements, eVisa online account setup, flight bookings, and comprehensive refusal letter guidance.',
+  },
+  {
+    q: 'How do I start an application with Prime Access from Zimbabwe?',
+    a: 'You can initiate an application by submitting an inquiry directly through our website or messaging us on WhatsApp. Our consultants will review your circumstances, assess eligibility, prepare your required documents checklist, and guide you through each stage.',
+  },
+  {
+    q: 'Can Prime Access assist if my previous visa application was refused?',
+    a: 'Yes. Our specialized Refusal Letter Guidance service thoroughly reviews Home Office or embassy refusal notices, pinpoints the underlying grounds of refusal, and devises an effective strategy for reapplication or administrative review.',
+  },
+  {
+    q: 'How does university placement and student visa guidance work?',
+    a: 'We connect prospective students with reputable UK and international institutions, help secure unconditional offers and Confirmation of Acceptance for Studies (CAS), assist with financial documentation, and coach you through visa credibility interviews.',
+  },
+  {
+    q: 'Can you assist with flight bookings after my visa is approved?',
+    a: 'Yes, we provide full flight booking assistance for international and regional travel to the UK, Europe, Australia, and worldwide, aligning your flight schedules directly with your visa validity and travel plans.',
+  },
+];
+
+const FAQ_SCHEMA = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: FAQS.map((f) => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: f.a,
+    },
+  })),
+};
 
 const JOURNEY_STEPS = [
   { step: '01', title: 'Visit', text: 'You explore our services and find what you need.' },
@@ -39,6 +76,7 @@ const FEATURES = [
 export default function Home() {
   const { settings } = useSettings();
   const [services, setServices] = useState([]);
+  const [openFaq, setOpenFaq] = useState(null);
 
   useEffect(() => {
     api('/services', { auth: false }).then((d) => setServices(d.items)).catch(() => {});
@@ -52,13 +90,20 @@ export default function Home() {
 
   return (
     <>
+      <SEO
+        title="Prime Access | Premier Immigration Consultancy Firm Zimbabwe"
+        description="Prime Access is Zimbabwe's trusted immigration consultancy firm in Harare. Expert guidance for UK visas, student visas, Schengen visas, business travel, and flight booking."
+        canonical="/"
+        schema={FAQ_SCHEMA}
+      />
+
       {/* ===== HERO ===== */}
       <section className="relative overflow-hidden bg-brand-950">
         {/* Full-bleed photo covering the whole hero, darker on the left so the copy stays readable */}
         <img
           src={womanImg}
-          alt=""
-          aria-hidden="true"
+          alt="Prime Access client holding passport receiving visa consultation"
+          fetchpriority="high"
           className="absolute inset-0 h-full w-full object-cover object-[50%_22%] sm:object-[58%_16%]"
         />
         <div className="absolute inset-0 bg-brand-950/45" />
@@ -380,6 +425,61 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      {/* ===== FAQS (RICH RESULTS & SEO) ===== */}
+      <section className="py-14 sm:py-20 bg-white">
+        <div className="container-x max-w-4xl">
+          <SectionHeading
+            eyebrow="Frequently Asked Questions"
+            title="Everything You Need to Know"
+            subtitle="Clear answers about our visa services, UK immigration, university admissions, and consultation process."
+          />
+          <div className="mt-10 space-y-3.5 sm:mt-12">
+            {FAQS.map((faq, idx) => {
+              const isOpen = openFaq === idx;
+              return (
+                <div
+                  key={idx}
+                  className="overflow-hidden rounded-2xl border border-brand-100 bg-brand-50/40 transition hover:border-gold-500/40"
+                >
+                  <button
+                    onClick={() => setOpenFaq(isOpen ? null : idx)}
+                    className="flex w-full items-center justify-between gap-4 p-5 text-left font-display text-base font-semibold text-brand-950 sm:text-lg"
+                    aria-expanded={isOpen}
+                  >
+                    <span>{faq.q}</span>
+                    <span
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-brand-900 shadow-sm transition-transform duration-200 ${
+                        isOpen ? 'rotate-180 bg-gold-500 text-brand-950' : ''
+                      }`}
+                    >
+                      <ChevronDown size={18} />
+                    </span>
+                  </button>
+                  {isOpen && (
+                    <div className="border-t border-brand-100/70 bg-white px-5 py-4 text-sm leading-relaxed text-brand-800 sm:text-base">
+                      {faq.a}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-8 text-center">
+            <p className="text-sm text-brand-600">
+              Have a specific question about your situation?{' '}
+              <a
+                href={waHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-gold-600 underline hover:text-gold-700"
+              >
+                Ask our consultants on WhatsApp
+              </a>
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* ===== CONTACT STRIP ===== */}
       <section className="bg-brand-50/60 py-12 sm:py-16">

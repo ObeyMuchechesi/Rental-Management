@@ -1,0 +1,22 @@
+{
+  "name": "Prime Access Immigration Consultancy Firm",
+  "short_name": "Prime Access",
+  "description": "Trusted immigration consultancy supporting UK visas, study placements, and global travel from Zimbabwe.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#002b2d",
+  "theme_color": "#002b2d",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import { useSettings } from '../SettingsContext';
 import { waLink } from '../api';
+import SEO from '../components/SEO';
 
 export default function Privacy() {
   const { settings } = useSettings();
@@ -8,7 +9,17 @@ export default function Privacy() {
   const waHref = waLink(settings?.whatsappNumber, 'Hi Prime Access, I have a question about your privacy policy.');
 
   return (
-    <section className="py-16">
+    <>
+      <SEO
+        title={`Privacy Policy | ${brand}`}
+        description={`Privacy Policy for ${brand}. Learn how we protect and manage your personal data and visa application details.`}
+        canonical="/privacy"
+        breadcrumbs={[
+          { name: 'Home', url: '/' },
+          { name: 'Privacy Policy', url: '/privacy' },
+        ]}
+      />
+      <section className="py-16">
       <div className="container-x max-w-3xl">
         <p className="text-xs font-bold uppercase tracking-[0.25em] text-gold-600">Legal</p>
         <h1 className="mt-2 font-display text-4xl font-bold text-brand-950">Privacy Policy</h1>
@@ -59,5 +70,6 @@ export default function Privacy() {
         </div>
       </div>
     </section>
+  </>
   );
 }

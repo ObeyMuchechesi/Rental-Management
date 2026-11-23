@@ -6,6 +6,7 @@ import { useSettings } from '../SettingsContext';
 import ServiceCard from '../components/ServiceCard';
 import SectionHeading from '../components/SectionHeading';
 import CTASection from '../components/CTASection';
+import SEO from '../components/SEO';
 import promoImg from '../assets/promo-london.jpg';
 import InquiryForm from '../components/InquiryForm';
 
@@ -17,14 +18,35 @@ export default function Services() {
     api('/services', { auth: false }).then((d) => setServices(d.items)).catch(() => {});
   }, []);
 
+  const servicesSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Immigration and Visa Services',
+    itemListElement: (services || []).map((s, idx) => ({
+      '@type': 'ListItem',
+      position: idx + 1,
+      name: s.title,
+      url: `https://primeaccess.co.zw/services/${s.slug}`,
+    })),
+  };
+
   return (
     <>
+      <SEO
+        title="Immigration & Visa Advisory Services | Prime Access Zimbabwe"
+        description="Explore our immigration services: UK visa application, student visas, visit visas, business visas, Schengen assistance, university placement, and eVisa account guidance."
+        canonical="/services"
+        breadcrumbs={[
+          { name: 'Home', url: '/' },
+          { name: 'Services', url: '/services' },
+        ]}
+        schema={servicesSchema}
+      />
       <section className="relative overflow-hidden bg-brand-950 py-16 lg:py-20">
         {/* Full-bleed photo backdrop, veiled so the copy stays readable */}
         <img
           src={promoImg}
-          alt=""
-          aria-hidden="true"
+          alt="Prime Access UK and international visa services London Big Ben"
           className="absolute inset-0 h-full w-full object-cover object-center"
         />
         <div className="absolute inset-0 bg-brand-950/55" />
