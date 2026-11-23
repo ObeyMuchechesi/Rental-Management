@@ -6,6 +6,7 @@ Disallow: /admin/
 Disallow: /api/
 
 # Host and Sitemaps
-Host: https://primeaccess.co.zw
-Sitemap: https://primeaccess.co.zw/sitemap.xml
+Host: https://www.primeaccessimmigration.co.zw
+Sitemap: https://www.primeaccessimmigration.co.zw/sitemap.xml
+Sitemap: https://primeaccessimmigration.co.zw/sitemap.xml
 Sitemap: https://prime-access.vercel.app/sitemap.xml

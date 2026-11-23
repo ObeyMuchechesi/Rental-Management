@@ -26,7 +26,7 @@ export default function Services() {
       '@type': 'ListItem',
       position: idx + 1,
       name: s.title,
-      url: `https://primeaccess.co.zw/services/${s.slug}`,
+      url: `https://www.primeaccessimmigration.co.zw/services/${s.slug}`,
     })),
   };
 

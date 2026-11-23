@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useSettings } from '../SettingsContext';
 
-const SITE_URL = 'https://primeaccess.co.zw';
+const SITE_URL = 'https://www.primeaccessimmigration.co.zw';
 const DEFAULT_BRAND = 'Prime Access Immigration Consultancy Firm';
 const DEFAULT_IMAGE = '/og-image.png';
 

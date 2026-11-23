@@ -53,7 +53,7 @@ export default function ServiceDetail() {
     provider: {
       '@type': 'ProfessionalService',
       name: settings.brandName,
-      url: 'https://primeaccess.co.zw/',
+      url: 'https://www.primeaccessimmigration.co.zw/',
     },
     areaServed: 'ZW',
     hasOfferCatalog: {

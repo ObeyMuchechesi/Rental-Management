@@ -15,7 +15,7 @@ const DEFAULT_SERVICES = [
 
 router.get('/sitemap.xml', async (req, res) => {
   try {
-    const host = req.headers.host || 'primeaccess.co.zw';
+    const host = req.headers.host || 'www.primeaccessimmigration.co.zw';
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const baseUrl = `${protocol}://${host}`;
 
@@ -101,7 +101,7 @@ ${serviceSlugs
 });
 
 router.get('/robots.txt', (req, res) => {
-  const host = req.headers.host || 'primeaccess.co.zw';
+  const host = req.headers.host || 'www.primeaccessimmigration.co.zw';
   const protocol = req.headers['x-forwarded-proto'] || 'https';
   const baseUrl = `${protocol}://${host}`;
 
