@@ -384,7 +384,10 @@ export default function Pricing() {
       <CheckoutModal
         open={!!checkout}
         presetPlan={checkout || 'credits'}
-        onClose={() => setCheckout(null)}
+        onClose={() => {
+          setCheckout(null);
+          loadPayments();
+        }}
         onPaid={loadPayments}
         title="Pay for TruckLink"
       />
