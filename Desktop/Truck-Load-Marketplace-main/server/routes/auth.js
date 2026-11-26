@@ -5,6 +5,7 @@ const Company = require('../models/Company');
 const Subscription = require('../models/Subscription');
 const { auth, signToken } = require('../middleware/auth');
 const { getOrCreateSubscription } = require('../middleware/plan');
+const billing = require('../services/billing');
 
 const router = express.Router();
 
@@ -75,7 +76,7 @@ router.post('/login', async (req, res, next) => {
 router.get('/me', auth(), async (req, res, next) => {
   try {
     const subscription = await getOrCreateSubscription(req.user.company?._id || req.user.company);
-    res.json({ user: req.user.toPublic(), subscription });
+    res.json({ user: req.user.toPublic(), subscription: billing.subscriptionView(subscription) });
   } catch (err) {
     next(err);
   }

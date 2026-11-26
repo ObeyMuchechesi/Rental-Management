@@ -6,6 +6,7 @@ import PlanBanner from '../components/PlanBanner';
 import LoadCard from '../components/LoadCard';
 import { Badge, EmptyState, Loader, Notice, PageHeader, StatCard } from '../components/ui';
 import { date, money } from '../lib/format';
+import { truckPhoto } from '../lib/photo';
 
 export default function Dashboard() {
   const { user, subscription, refreshSubscription } = useAuth();
@@ -13,6 +14,8 @@ export default function Dashboard() {
   const [loads, setLoads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [actionId, setActionId] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,7 +51,22 @@ export default function Dashboard() {
 
   const availableTrucks = trucks.filter((truck) => truck.status === 'available').length;
   const openLoads = loads.filter((load) => load.status === 'open').length;
+  const completedLoads = loads.filter((load) => load.status === 'completed').length;
   const offeredValue = loads.reduce((total, load) => total + (Number(load.totalOfferedRate) || 0), 0);
+
+  const completeLoad = async (load) => {
+    setActionId(load._id);
+    setError('');
+    try {
+      const { data } = await api.post(`/loads/${load._id}/complete`);
+      setLoads((current) => current.map((item) => (item._id === data._id ? data : item)));
+      setNotice(`“${data.cargoType}” marked delivered — it now counts as a completed ride.`);
+    } catch (err) {
+      setError(errorMessage(err, 'Could not mark that load delivered.'));
+    } finally {
+      setActionId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -87,7 +105,17 @@ export default function Dashboard() {
         </div>
       )}
 
-      <PlanBanner sub={subscription} />
+      {!isAdmin && <PlanBanner sub={subscription} />}
+
+      {!isAdmin && subscription?.expired && (
+        <Notice tone="warning">
+          Your monthly plan expired on {date(subscription.currentPeriodEnd)}. Contacts, exact locations and
+          unmasked lists stay locked until you renew.{' '}
+          <Link to="/pricing" className="font-semibold underline">
+            Renew now
+          </Link>
+        </Notice>
+      )}
 
       {isCarrier && !user.company?.verified && (
         <Notice tone="warning">
@@ -96,6 +124,7 @@ export default function Dashboard() {
         </Notice>
       )}
 
+      {notice && <Notice tone="success">{notice}</Notice>}
       {error && <Notice tone="error">{error}</Notice>}
 
       {loading ? (
@@ -134,16 +163,27 @@ export default function Dashboard() {
               <div className="card divide-y divide-slate-200">
                 {trucks.map((truck) => (
                   <div key={truck._id} className="flex flex-wrap items-center justify-between gap-3 p-5">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <Badge tone="indigo">{truck.type}</Badge>
-                        <span className="text-sm font-semibold text-slate-900">{truck.plateNumber}</span>
-                        <Badge tone={truck.status === 'available' ? 'emerald' : 'slate'}>{truck.status}</Badge>
+                    <div className="flex items-center gap-4">
+                      {truckPhoto(truck) ? (
+                        <img
+                          src={truckPhoto(truck)}
+                          alt={`${truck.plateNumber} ${truck.type}`}
+                          className="h-16 w-24 shrink-0 rounded-xl object-cover ring-1 ring-slate-200"
+                        />
+                      ) : (
+                        <div className="grid h-16 w-24 shrink-0 place-items-center rounded-xl bg-slate-100 text-xl">🚛</div>
+                      )}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Badge tone="indigo">{truck.type}</Badge>
+                          <span className="text-sm font-semibold text-slate-900">{truck.plateNumber}</span>
+                          <Badge tone={truck.status === 'available' ? 'emerald' : 'slate'}>{truck.status}</Badge>
+                        </div>
+                        <p className="mt-1 text-sm text-slate-600">
+                          {truck.capacityTons}t · {truck.currentLocation?.city} · available until{' '}
+                          {date(truck.availableUntil)}
+                        </p>
                       </div>
-                      <p className="mt-1 text-sm text-slate-600">
-                        {truck.capacityTons}t · {truck.currentLocation?.city} · available until{' '}
-                        {date(truck.availableUntil)}
-                      </p>
                     </div>
                     <div className="text-right text-sm">
                       <p className="font-semibold text-slate-900">{money(truck.minRatePerKm)}/km minimum</p>
@@ -157,13 +197,14 @@ export default function Dashboard() {
         </>
       ) : isShipper ? (
         <>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Loads posted" value={loads.length} hint={`${openLoads} still open`} />
+            <StatCard label="Completed rides" value={completedLoads} hint="confirmed deliveries" />
             <StatCard label="Offered value" value={money(offeredValue)} hint="across all your loads" />
             <StatCard
-              label="Credits"
-              value={subscription?.credits ?? 0}
-              hint={subscription?.plan === 'monthly' ? 'unlimited unlocks on monthly' : '1 credit per unlock'}
+              label={subscription?.active ? 'Monthly plan' : 'Credits'}
+              value={subscription?.active ? `${subscription.daysLeft} days left` : subscription?.credits ?? 0}
+              hint={subscription?.active ? 'unlimited unlocks' : '1 credit per unlock'}
             />
           </div>
 
@@ -192,9 +233,25 @@ export default function Dashboard() {
                     key={load._id}
                     load={load}
                     footer={
-                      <Link to={`/search/${load._id}`} className="btn-primary w-full">
-                        Find matching trucks
-                      </Link>
+                      load.status === 'completed' ? (
+                        <div className="rounded-xl bg-indigo-50 px-3 py-2.5 text-center text-sm font-semibold text-indigo-700">
+                          Delivered · completed ride
+                        </div>
+                      ) : (
+                        <div className="grid gap-2">
+                          <Link to={`/search/${load._id}`} className="btn-primary w-full">
+                            Find matching trucks
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => completeLoad(load)}
+                            disabled={actionId === load._id}
+                            className="btn-ghost w-full"
+                          >
+                            {actionId === load._id ? 'Saving…' : 'Mark delivered'}
+                          </button>
+                        </div>
+                      )
                     }
                   />
                 ))}

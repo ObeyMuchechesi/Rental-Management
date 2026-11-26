@@ -21,18 +21,20 @@ app.use(
   })
 );
 
-// Stripe webhooks must be parsed as raw before the JSON body parser is attached.
-app.use('/api/webhooks', require('./routes/webhooks'));
+// PayNow result callbacks are form-encoded and hash-verified from the raw body.
+app.use('/api/paynow', require('./routes/paynow'));
 
-app.use(express.json({ limit: '1mb' }));
+// Truck photos travel as compressed data URLs, so the JSON cap is larger than default.
+app.use(express.json({ limit: '3mb' }));
 app.use(morgan('dev'));
 
 app.get('/api/health', (req, res) => {
   const mongoose = require('mongoose');
+  const paynow = require('./services/paynow');
   res.json({
     ok: true,
     db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    stripe: process.env.STRIPE_SECRET_KEY ? 'configured' : 'missing',
+    paynow: paynow.isConfigured() ? 'configured' : 'missing',
     time: new Date().toISOString(),
   });
 });

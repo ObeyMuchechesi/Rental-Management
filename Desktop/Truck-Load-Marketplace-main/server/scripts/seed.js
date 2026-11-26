@@ -9,6 +9,15 @@ const Truck = require('../models/Truck');
 const Load = require('../models/Load');
 const Subscription = require('../models/Subscription');
 const Unlock = require('../models/Unlock');
+const Payment = require('../models/Payment');
+
+const TRUCK_PHOTOS = [
+  '/photos/dump-truck-quarry.jpg',
+  '/photos/tanker-terminal.jpg',
+  '/photos/tanker-fleet.jpg',
+  '/photos/scania-lineup-bw.jpg',
+  '/photos/scania-lineup.jpg',
+];
 
 const CITIES = {
   Nairobi: [36.8219, -1.2921],
@@ -19,6 +28,8 @@ const CITIES = {
   Thika: [37.0693, -1.0333],
   Kampala: [32.5825, 0.3476],
   'Dar es Salaam': [39.2083, -6.7924],
+  Harare: [31.0529, -17.8252],
+  Lusaka: [28.3228, -15.3875],
 };
 
 const days = (n) => new Date(Date.now() + n * 24 * 60 * 60 * 1000);
@@ -35,6 +46,11 @@ const upsertUser = async (email, data) => {
   ).populate('company');
 };
 
+const photoFor = (plateNumber) => {
+  const score = [...plateNumber].reduce((total, char) => total + char.charCodeAt(0), 0);
+  return TRUCK_PHOTOS[score % TRUCK_PHOTOS.length];
+};
+
 const upsertTruck = (company, plateNumber, data) =>
   Truck.findOneAndUpdate(
     { company: company._id, plateNumber },
@@ -43,6 +59,7 @@ const upsertTruck = (company, plateNumber, data) =>
         ...data,
         company: company._id,
         plateNumber,
+        photos: data.photos || [photoFor(plateNumber)],
         currentLocation: {
           city: data.city,
           coordinates: CITIES[data.city],
@@ -84,6 +101,7 @@ const run = async () => {
     Load.syncIndexes(),
     Subscription.syncIndexes(),
     Unlock.syncIndexes(),
+    Payment.syncIndexes(),
   ]);
 
   const kilimanjaro = await upsertCompany({
@@ -136,6 +154,22 @@ const run = async () => {
     rating: 4.6,
   });
 
+  const zambezi = await upsertCompany({
+    name: 'Zambezi Carriers',
+    type: 'carrier',
+    phone: '+263772000606',
+    address: 'Southerton, Harare',
+    taxId: 'ZW-CAR-006',
+    verified: true,
+    rating: 4.2,
+  });
+
+  const superadmin = await upsertUser('superadmin@trucklink.test', {
+    name: 'TruckLink Super Admin',
+    password: 'Super@12345',
+    role: 'admin',
+  });
+
   const admin = await upsertUser('admin@trucklink.test', {
     name: 'Amina Yusuf',
     password: 'Admin@12345',
@@ -161,6 +195,13 @@ const run = async () => {
     password: 'Carrier@123',
     role: 'carrier',
     company: lakeview._id,
+  });
+
+  await upsertUser('ops@zambezi.test', {
+    name: 'Tendai Moyo',
+    password: 'Carrier@123',
+    role: 'carrier',
+    company: zambezi._id,
   });
 
   const shipperUser = await upsertUser('dispatch@savannah.test', {
@@ -189,7 +230,7 @@ const run = async () => {
   );
   await Subscription.findOneAndUpdate(
     { company: lakeview._id },
-    { $set: { plan: 'free', status: 'none', credits: 0 } },
+    { $set: { plan: 'monthly', status: 'expired', currentPeriodEnd: days(-6), credits: 2 } },
     { upsert: true }
   );
   await Subscription.findOneAndUpdate(
@@ -200,6 +241,11 @@ const run = async () => {
   await Subscription.findOneAndUpdate(
     { company: coast._id },
     { $set: { plan: 'monthly', status: 'active', currentPeriodEnd: days(12) } },
+    { upsert: true }
+  );
+  await Subscription.findOneAndUpdate(
+    { company: zambezi._id },
+    { $set: { plan: 'monthly', status: 'expired', currentPeriodEnd: days(-19), credits: 0 } },
     { upsert: true }
   );
 
@@ -284,6 +330,26 @@ const run = async () => {
       contactPhone: '+254712000101',
       exactAddress: 'Heavy haul yard, Thika Road',
     }),
+    await upsertTruck(zambezi, 'AEB 3821', {
+      type: 'flatbed',
+      capacityTons: 34,
+      capacityVolumeM3: 80,
+      city: 'Harare',
+      availableUntil: days(22),
+      minRatePerKm: 1.55,
+      contactPhone: '+263772000606',
+      exactAddress: 'Workington yard, Harare',
+    }),
+    await upsertTruck(zambezi, 'ACD 7742', {
+      type: 'container',
+      capacityTons: 30,
+      capacityVolumeM3: 72,
+      city: 'Lusaka',
+      availableUntil: days(27),
+      minRatePerKm: 1.7,
+      contactPhone: '+263772000606',
+      exactAddress: 'Makeni depot, Lusaka',
+    }),
   ];
 
   await upsertLoad(savannah, 'Bagged cement', {
@@ -351,6 +417,30 @@ const run = async () => {
     status: 'open',
   });
 
+  const completedRides = [
+    [savannah, 'Maize flour', 'Nairobi', 'Kampala', -9, -7, 1.35, 1215],
+    [savannah, 'Cement clinker', 'Mombasa', 'Nakuru', -36, -33, 1.25, 875],
+    [coast, 'Avocado export', 'Nairobi', 'Mombasa', -64, -62, 1.65, 825],
+    [coast, 'Copper cathode', 'Lusaka', 'Dar es Salaam', -97, -93, 1.45, 2900],
+    [savannah, 'Fertiliser blend', 'Eldoret', 'Kisumu', -4, -2, 1.2, 480],
+  ];
+
+  for (const [company, cargo, from, to, pickupOffset, dropoffOffset, rate, total] of completedRides) {
+    await upsertLoad(company, cargo, {
+      weightTons: total > 1500 ? 30 : 22,
+      truckTypesRequired: [],
+      from,
+      to,
+      pickupDate: days(pickupOffset),
+      dropoffDate: days(dropoffOffset),
+      offeredRatePerKm: rate,
+      totalOfferedRate: total,
+      contactPhone: company.phone,
+      status: 'completed',
+      completedAt: days(dropoffOffset),
+    });
+  }
+
   for (const truck of trucks.slice(0, 3)) {
     await Unlock.updateOne(
       { company: savannah._id, targetType: 'truck', targetId: truck._id },
@@ -359,14 +449,87 @@ const run = async () => {
     );
   }
 
+  const upsertPayment = (reference, data) =>
+    Payment.findOneAndUpdate(
+      { reference },
+      { $set: { reference, status: 'paid', currency: 'USD', provider: 'paynow', ...data } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+  const monthDate = (offset, day = 8) => {
+    const now = new Date();
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offset, day, 10, 0, 0));
+  };
+
+  // Six months of subscription revenue across two paying companies.
+  for (let offset = 0; offset < 6; offset += 1) {
+    const monthKey = `${monthDate(offset).getUTCFullYear()}${String(monthDate(offset).getUTCMonth() + 1).padStart(2, '0')}`;
+
+    await upsertPayment(`SEED-MONTHLY-${monthKey}-KIL`, {
+      company: kilimanjaro._id,
+      plan: 'monthly',
+      amount: 29,
+      credits: 0,
+      paidAt: monthDate(offset, 4),
+      notes: 'Seeded subscription payment',
+    });
+    await upsertPayment(`SEED-MONTHLY-${monthKey}-COA`, {
+      company: coast._id,
+      plan: 'monthly',
+      amount: 29,
+      credits: 0,
+      paidAt: monthDate(offset, 9),
+      notes: 'Seeded subscription payment',
+    });
+
+    if (offset < 4) {
+      await upsertPayment(`SEED-CREDITS-${monthKey}-RIF`, {
+        company: riftValley._id,
+        plan: 'credits',
+        amount: 10,
+        credits: 20,
+        paidAt: monthDate(offset, 16),
+        notes: 'Seeded credit pack',
+      });
+      await upsertPayment(`SEED-CREDITS-${monthKey}-SAV`, {
+        company: savannah._id,
+        plan: 'credits',
+        amount: 10,
+        credits: 20,
+        paidAt: monthDate(offset, 22),
+        notes: 'Seeded credit pack',
+      });
+    }
+  }
+
+  await Payment.findOneAndUpdate(
+    { reference: 'SEED-PENDING-DEMO' },
+    {
+      $set: {
+        reference: 'SEED-PENDING-DEMO',
+        company: riftValley._id,
+        plan: 'monthly',
+        status: 'pending',
+        amount: 29,
+        currency: 'USD',
+        credits: 0,
+        provider: 'paynow',
+        notes: 'Awaiting PayNow confirmation (demo)',
+      },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
   console.log('\nSeed complete. Demo accounts:');
+  console.log('  superadmin superadmin@trucklink.test  Super@12345');
   console.log('  admin    admin@trucklink.test        Admin@12345');
   console.log('  carrier  ops@kilimanjaro.test        Carrier@123   (monthly, verified)');
   console.log('  carrier  dispatch@riftvalley.test    Carrier@123   (6 credits)');
-  console.log('  carrier  ops@lakeview.test           Carrier@123   (unverified)');
+  console.log('  carrier  ops@lakeview.test           Carrier@123   (expired monthly, unverified)');
+  console.log('  carrier  ops@zambezi.test            Carrier@123   (expired monthly, verified)');
   console.log('  shipper  dispatch@savannah.test      Shipper@123   (5 credits)');
   console.log('  shipper  ops@coasttraders.test       Shipper@123   (monthly)');
-  console.log(`  admin user id: ${admin._id}`);
+  console.log(`  superadmin user id: ${superadmin._id}`);
   console.log(`  carrier user: ${carrierUser.name}, shipper user: ${shipperUser.name}, shipper2: ${coastUser.name}, tankers: ${tankerUser.name}`);
 
   await mongoose.disconnect();

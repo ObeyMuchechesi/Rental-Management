@@ -35,3 +35,18 @@ export const initials = (name = '') =>
     .join('');
 
 export const isLocked = (entity) => entity?.contactPhone === '••••••••';
+
+export const planLabel = (sub) => {
+  if (sub?.active) return 'Monthly plan';
+  if (sub?.expired) return 'Monthly expired';
+  if (sub?.plan === 'per_use') return `${sub.credits ?? 0} credits`;
+  return 'Free plan';
+};
+
+export const paymentTone = (status) => {
+  if (status === 'paid') return 'emerald';
+  if (status === 'pending') return 'amber';
+  if (status === 'failed') return 'rose';
+  return 'slate';
+};
+

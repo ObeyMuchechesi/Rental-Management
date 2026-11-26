@@ -37,6 +37,12 @@ export function AuthProvider({ children }) {
     const { data } = await api.post('/auth/login', { email, password });
     localStorage.setItem('token', data.token);
     setUser(data.user);
+    try {
+      const { data: sub } = await api.get('/plans/me');
+      setSubscription(sub);
+    } catch {
+      setSubscription(null);
+    }
     return data.user;
   };
 
@@ -44,6 +50,7 @@ export function AuthProvider({ children }) {
     const { data } = await api.post('/auth/register', payload);
     localStorage.setItem('token', data.token);
     setUser(data.user);
+    setSubscription(null);
     return data.user;
   };
 

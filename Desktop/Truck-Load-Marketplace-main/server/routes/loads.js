@@ -1,7 +1,7 @@
 const express = require('express');
 const Load = require('../models/Load');
 const { auth } = require('../middleware/auth');
-const { requireAccess } = require('../middleware/plan');
+const { requireAccess, hasUnlimitedUnlocks } = require('../middleware/plan');
 const matching = require('../services/matching');
 
 const router = express.Router();
@@ -98,7 +98,10 @@ router.get('/', auth('carrier'), async (req, res, next) => {
       .limit(100)
       .populate('company');
 
-    res.json(loads.map((l) => matching.sanitizeLoad(l, false)));
+    // Active monthly plan: show every shipper contact without spending credits.
+    const unlimited = await hasUnlimitedUnlocks(req.user.company?._id || req.user.company);
+
+    res.json(loads.map((l) => matching.sanitizeLoad(l, unlimited)));
   } catch (err) {
     next(err);
   }
@@ -114,7 +117,24 @@ router.patch('/:id', auth('shipper'), findLoad, ownsLoad, async (req, res, next)
     for (const field of fields) {
       if (req.body[field] !== undefined) req.load[field] = req.body[field];
     }
+    if (req.load.status === 'completed' && !req.load.completedAt) req.load.completedAt = new Date();
+    if (req.load.status !== 'completed') req.load.completedAt = undefined;
+
     await req.load.save();
+    res.json(matching.sanitizeLoad(req.load, true));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// The shipper confirms the freight was delivered: this is a completed ride.
+router.post('/:id/complete', auth('shipper'), findLoad, ownsLoad, async (req, res, next) => {
+  try {
+    if (req.load.status !== 'completed') {
+      req.load.status = 'completed';
+      req.load.completedAt = new Date();
+      await req.load.save();
+    }
     res.json(matching.sanitizeLoad(req.load, true));
   } catch (err) {
     next(err);

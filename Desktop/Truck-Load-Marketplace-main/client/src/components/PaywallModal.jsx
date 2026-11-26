@@ -38,7 +38,9 @@ export default function PaywallModal({ open, message, onClose }) {
     setError('');
     try {
       const { data } = await api.post(kind === 'monthly' ? '/plans/subscribe' : '/plans/credits');
-      window.location.href = data.url;
+      const target = data.redirectUrl || data.url;
+      if (!target) throw new Error(data.message || 'PayNow did not return a checkout link.');
+      window.location.href = target;
     } catch (err) {
       setError(errorMessage(err, 'Could not start checkout.'));
       setBusy(null);
@@ -52,6 +54,7 @@ export default function PaywallModal({ open, message, onClose }) {
         <p className="mt-1 text-sm text-slate-600">
           {message || 'Choose a plan to see phone numbers, exact locations and contact the other side directly.'}
         </p>
+        <p className="mt-2 text-xs text-slate-500">Secure payment via PayNow Zimbabwe (USD). Your plan activates automatically.</p>
 
         {error && (
           <div className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">
@@ -79,7 +82,7 @@ export default function PaywallModal({ open, message, onClose }) {
             <p className="font-semibold text-slate-900">
               Pay as you go — $10 / 20 credits {busy === 'credits' && '· starting…'}
             </p>
-            <p className="text-sm text-slate-600">1 credit per unlock.</p>
+            <p className="text-sm text-slate-600">1 credit per unlock or truck listing.</p>
           </button>
         </div>
 

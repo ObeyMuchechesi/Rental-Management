@@ -1,27 +1,146 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import PlanBanner from '../components/PlanBanner';
-import { Notice, PageHeader } from '../components/ui';
+import { Badge, Notice, PageHeader } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
-import { money } from '../lib/format';
+import { date, money, paymentTone } from '../lib/format';
 
 export default function Pricing() {
-  const { user, subscription } = useAuth();
+  const { user, subscription, refresh, refreshSubscription } = useAuth();
+  const [searchParams] = useSearchParams();
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [payments, setPayments] = useState([]);
+  const [checking, setChecking] = useState('');
+  const confirmedRef = useRef(new Set());
+
+  const userId = user?._id;
+  const returnReference = searchParams.get('payment') === 'return' ? searchParams.get('reference') : null;
+
+  const loadPayments = useCallback(async () => {
+    if (!userId) {
+      setPayments([]);
+      return;
+    }
+    try {
+      const { data } = await api.get('/plans/payments');
+      setPayments(data);
+    } catch {
+      // Billing history is supplemental; the plans still work without it.
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    loadPayments();
+    if (userId) refreshSubscription();
+  }, [loadPayments, refreshSubscription, userId]);
+
+  const mergePayment = useCallback((payment) => {
+    setPayments((current) => {
+      const exists = current.some((row) => row.reference === payment.reference);
+      return exists
+        ? current.map((row) => (row.reference === payment.reference ? payment : row))
+        : [payment, ...current];
+    });
+  }, []);
+
+  const applyResult = useCallback(
+    async (data) => {
+      mergePayment(data.payment);
+      if (data.payment.status === 'paid') {
+        setNotice(
+          data.payment.plan === 'monthly'
+            ? 'Payment received. Your monthly plan is active — contacts and truck listings are unlocked.'
+            : `Payment received. ${data.payment.credits} credits were added to your account.`
+        );
+        setError('');
+        await Promise.all([refresh(), refreshSubscription()]);
+        return true;
+      }
+      if (data.payment.status === 'failed' || data.payment.status === 'cancelled') {
+        setError(
+          data.payment.status === 'cancelled'
+            ? 'That payment was cancelled. Nothing was charged.'
+            : 'PayNow could not complete that payment. You can try again.'
+        );
+        return true;
+      }
+      return false;
+    },
+    [mergePayment, refresh, refreshSubscription]
+  );
+
+  // PayNow sends the browser back here; poll until the payment is confirmed.
+  useEffect(() => {
+    if (!userId || !returnReference || confirmedRef.current.has(returnReference)) return undefined;
+    let cancelled = false;
+
+    const poll = async (attempt) => {
+      try {
+        const { data } = await api.get(`/plans/payments/${returnReference}/status`);
+        const done = await applyResult(data);
+        if (done) {
+          confirmedRef.current.add(returnReference);
+          return;
+        }
+        if (cancelled || attempt >= 9) {
+          if (!cancelled) {
+            setNotice('PayNow is still confirming this payment. Use "Check status" below in a moment.');
+          }
+          return;
+        }
+        setTimeout(() => {
+          if (!cancelled) poll(attempt + 1);
+        }, 3000);
+      } catch (err) {
+        if (!cancelled) setError(errorMessage(err, 'Could not confirm the payment yet.'));
+      }
+    };
+
+    poll(0);
+    return () => {
+      cancelled = true;
+    };
+  }, [applyResult, returnReference, userId]);
 
   const start = async (kind) => {
     setBusy(kind);
     setError('');
+    setNotice('');
     try {
       const { data } = await api.post(kind === 'monthly' ? '/plans/subscribe' : '/plans/credits');
-      if (data.url) window.location.href = data.url;
+      const target = data.redirectUrl || data.url;
+      if (!target) throw new Error(data.message || 'PayNow did not return a checkout link.');
+      window.location.href = target;
     } catch (err) {
       setError(errorMessage(err, 'Could not start checkout.'));
       setBusy('');
     }
   };
+
+  const checkStatus = async (payment) => {
+    setChecking(payment.reference);
+    setError('');
+    try {
+      const { data } = await api.get(`/plans/payments/${payment.reference}/status`);
+      const done = await applyResult(data);
+      if (!done) setNotice('PayNow has not confirmed this payment yet. Check again in a moment.');
+    } catch (err) {
+      setError(errorMessage(err, 'Could not check that payment.'));
+    } finally {
+      setChecking('');
+    }
+  };
+
+  const pendingPayment = useMemo(
+    () => payments.find((payment) => payment.status === 'pending'),
+    [payments]
+  );
+
+  const monthlyActive = !!subscription?.active;
+  const monthlyExpired = !!subscription?.expired;
 
   const plans = [
     {
@@ -37,7 +156,12 @@ export default function Pricing() {
       price: money(10),
       cadence: 'per 20 credits',
       description: 'One credit unlocks one truck or one shipper contact.',
-      features: ['20 credits per pack', 'Credits never expire', 'Unlimited browsing', 'Works for both sides'],
+      features: [
+        '20 credits per pack',
+        'Credits never expire',
+        'One credit per truck listing',
+        'Works for both sides',
+      ],
       action: { kind: 'credits', label: 'Buy 20 credits' },
     },
     {
@@ -45,16 +169,19 @@ export default function Pricing() {
       price: money(29),
       cadence: 'per month',
       description: 'For companies that move freight every week.',
-      features: ['Unlimited unlocks', 'Unlimited truck listings', 'Priority matching', 'Cancel anytime'],
+      features: ['Unlimited contact unlocks', 'Unlimited truck listings', 'Full contact details in lists', 'Cancel anytime'],
       highlight: true,
-      action: { kind: 'monthly', label: 'Subscribe monthly' },
+      action: {
+        kind: 'monthly',
+        label: monthlyActive ? 'Extend 30 days' : monthlyExpired ? 'Renew monthly' : 'Subscribe monthly',
+      },
     },
   ];
 
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Pricing"
+        eyebrow="Pricing & billing"
         title="Both sides pay only when they connect"
         description="Carriers pay to be listed. Shippers pay to unlock truck details. Everyone can browse and post for free."
       />
@@ -76,7 +203,35 @@ export default function Pricing() {
 
       {user && <PlanBanner sub={subscription} />}
 
+      {notice && <Notice tone="success">{notice}</Notice>}
       {error && <Notice tone="error">{error}</Notice>}
+
+      {pendingPayment && (
+        <div className="card flex flex-wrap items-center justify-between gap-4 p-5">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Payment awaiting PayNow confirmation</p>
+            <p className="mt-0.5 text-sm text-slate-600">
+              {pendingPayment.planName} · {money(pendingPayment.amount, pendingPayment.currency)} · started{' '}
+              {date(pendingPayment.createdAt)}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {pendingPayment.browserUrl && (
+              <a href={pendingPayment.browserUrl} className="btn-primary">
+                Complete with PayNow
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={() => checkStatus(pendingPayment)}
+              disabled={checking === pendingPayment.reference}
+              className="btn-ghost"
+            >
+              {checking === pendingPayment.reference ? 'Checking…' : 'Check status'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-3">
         {plans.map((plan) => (
@@ -107,7 +262,7 @@ export default function Pricing() {
                     disabled={!!busy}
                     className={`w-full ${plan.highlight ? 'btn-primary' : 'btn-ghost'}`}
                   >
-                    {busy === plan.action.kind ? 'Starting…' : plan.action.label}
+                    {busy === plan.action.kind ? 'Starting PayNow…' : plan.action.label}
                   </button>
                 ) : (
                   <Link to="/register" className="btn-primary w-full">
@@ -124,6 +279,84 @@ export default function Pricing() {
         ))}
       </div>
 
+      {user && (
+        <div className="card overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-6">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Payment history</h2>
+              <p className="mt-0.5 text-sm text-slate-500">
+                Every PayNow payment and manual activation on your company account.
+              </p>
+            </div>
+            <button type="button" onClick={loadPayments} className="btn-ghost">
+              Refresh
+            </button>
+          </div>
+
+          {payments.length === 0 ? (
+            <p className="px-6 py-10 text-center text-sm text-slate-500">
+              No payments yet. Choose a plan above to get started.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-6 py-3">Reference</th>
+                    <th className="px-6 py-3">Plan</th>
+                    <th className="px-6 py-3">Amount</th>
+                    <th className="px-6 py-3">Status</th>
+                    <th className="px-6 py-3">Date</th>
+                    <th className="px-6 py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {payments.map((payment) => (
+                    <tr key={payment.reference}>
+                      <td className="px-6 py-4 font-mono text-xs text-slate-600">{payment.reference}</td>
+                      <td className="px-6 py-4 text-slate-700">
+                        {payment.planName}
+                        {payment.credits ? ` · ${payment.credits} credits` : ''}
+                      </td>
+                      <td className="px-6 py-4 font-semibold text-slate-900">
+                        {money(payment.amount, payment.currency)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <Badge tone={paymentTone(payment.status)}>{payment.status}</Badge>
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">{date(payment.paidAt || payment.createdAt)}</td>
+                      <td className="px-6 py-4 text-right">
+                        {payment.status === 'pending' ? (
+                          <div className="flex justify-end gap-2">
+                            {payment.browserUrl && (
+                              <a href={payment.browserUrl} className="text-sm font-semibold text-indigo-700 hover:underline">
+                                PayNow
+                              </a>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => checkStatus(payment)}
+                              disabled={checking === payment.reference}
+                              className="text-sm font-semibold text-slate-600 hover:underline disabled:opacity-60"
+                            >
+                              {checking === payment.reference ? 'Checking…' : 'Check'}
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400">
+                            {payment.provider === 'manual' ? 'Manual' : 'PayNow'}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="card p-7">
         <h2 className="text-lg font-semibold text-slate-900">How billing works</h2>
         <div className="mt-4 grid gap-6 text-sm text-slate-600 sm:grid-cols-3">
@@ -137,15 +370,15 @@ export default function Pricing() {
           <div>
             <p className="font-semibold text-slate-900">Subscriptions</p>
             <p className="mt-1">
-              An active monthly plan removes all unlock costs and makes truck listings unlimited until the
-              period ends.
+              An active monthly plan removes all unlock costs, makes truck listings unlimited, and shows full
+              contact details in every list until the period ends.
             </p>
           </div>
           <div>
-            <p className="font-semibold text-slate-900">Checkout</p>
+            <p className="font-semibold text-slate-900">PayNow checkout</p>
             <p className="mt-1">
-              Payments run through Stripe Checkout. Credits and plan status are applied by a verified
-              webhook, not by the browser.
+              Payments run through PayNow Zimbabwe in USD. Your plan activates automatically once PayNow
+              confirms it — or tap “Check status” here. Nothing is charged until you approve it in PayNow.
             </p>
           </div>
         </div>

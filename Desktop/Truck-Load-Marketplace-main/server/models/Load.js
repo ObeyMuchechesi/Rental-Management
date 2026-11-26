@@ -20,7 +20,8 @@ const loadSchema = new mongoose.Schema(
     dropoff: { type: stopSchema, required: true },
     offeredRatePerKm: { type: Number, required: true },
     totalOfferedRate: Number,
-    status: { type: String, enum: ['open', 'matched', 'closed'], default: 'open' },
+    status: { type: String, enum: ['open', 'matched', 'completed', 'closed'], default: 'open' },
+    completedAt: Date,
     contactPhone: { type: String, required: true },
   },
   { timestamps: true }

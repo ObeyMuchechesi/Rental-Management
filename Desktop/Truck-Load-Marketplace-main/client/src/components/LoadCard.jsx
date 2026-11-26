@@ -9,7 +9,9 @@ export default function LoadCard({ load, onUnlock, busy, footer }) {
     <div className="card flex flex-col p-5 transition hover:shadow-card">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <Badge tone={load.status === 'open' ? 'emerald' : 'slate'}>{load.status}</Badge>
+          <Badge tone={load.status === 'open' ? 'emerald' : load.status === 'completed' ? 'indigo' : 'slate'}>
+            {load.status}
+          </Badge>
           <h3 className="mt-2 text-lg font-semibold text-slate-900">{load.cargoType}</h3>
           <p className="mt-0.5 text-sm text-slate-500">
             {company.name || 'Shipper'} · {load.weightTons}t
@@ -38,6 +40,12 @@ export default function LoadCard({ load, onUnlock, busy, footer }) {
           <dt className="text-slate-500">Delivery</dt>
           <dd className="font-semibold text-slate-900">{date(load.dropoff?.date)}</dd>
         </div>
+        {load.status === 'completed' && load.completedAt && (
+          <div className="col-span-2">
+            <dt className="text-slate-500">Delivered</dt>
+            <dd className="font-semibold text-indigo-700">{date(load.completedAt)}</dd>
+          </div>
+        )}
       </dl>
 
       {load.truckTypesRequired?.length > 0 && (

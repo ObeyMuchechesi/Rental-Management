@@ -1,19 +1,19 @@
 const Subscription = require('../models/Subscription');
 const Unlock = require('../models/Unlock');
+const billing = require('../services/billing');
 
-const hasActiveSubscription = (sub) =>
-  !!sub &&
-  sub.plan === 'monthly' &&
-  sub.status === 'active' &&
-  !!sub.currentPeriodEnd &&
-  sub.currentPeriodEnd > new Date();
+const hasActiveSubscription = billing.hasActiveSubscription;
 
-const getOrCreateSubscription = (companyId) =>
-  Subscription.findOneAndUpdate(
-    { company: companyId },
-    { $setOnInsert: { company: companyId, plan: 'free', status: 'none' } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
+const getOrCreateSubscription = async (companyId) => {
+  if (!companyId) return null;
+  return billing.ensureSubscription(companyId);
+};
+
+/** Active monthly plans see gated contact details everywhere, without spending credits. */
+const hasUnlimitedUnlocks = async (companyId) => {
+  const sub = await getOrCreateSubscription(companyId);
+  return hasActiveSubscription(sub);
+};
 
 /**
  * Gate for viewing gated contact details.
@@ -80,8 +80,12 @@ const requireAccess = (targetType) => async (req, res, next) => {
 
     return res.status(402).json({
       error: 'PAYMENT_REQUIRED',
-      message: 'Buy credits or subscribe to view details.',
-      plans: ['monthly', 'per_use'],
+      message:
+        sub?.expired || sub?.status === 'expired'
+          ? 'Your monthly plan has expired. Renew it or buy credits to see contact details again.'
+          : 'Buy credits or subscribe to view details.',
+      plans: ['monthly', 'credits'],
+      subscription: billing.subscriptionView(sub),
     });
   } catch (err) {
     next(err);
@@ -111,8 +115,12 @@ const requireListing = async (req, res, next) => {
 
     return res.status(402).json({
       error: 'PAYMENT_REQUIRED',
-      message: 'Subscribe or buy listing credits to publish a truck.',
-      plans: ['monthly', 'per_use'],
+      message:
+        sub?.status === 'expired'
+          ? 'Your monthly plan has expired. Renew it or buy credits to publish a truck.'
+          : 'Subscribe or buy listing credits to publish a truck.',
+      plans: ['monthly', 'credits'],
+      subscription: billing.subscriptionView(sub),
     });
   } catch (err) {
     next(err);
@@ -123,5 +131,6 @@ module.exports = {
   requireAccess,
   requireListing,
   hasActiveSubscription,
+  hasUnlimitedUnlocks,
   getOrCreateSubscription,
 };

@@ -1,6 +1,6 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { initials } from '../lib/format';
+import { initials, planLabel } from '../lib/format';
 
 const navFor = (role) => {
   if (role === 'carrier') {
@@ -8,20 +8,20 @@ const navFor = (role) => {
       { to: '/dashboard', label: 'Dashboard' },
       { to: '/trucks/new', label: 'Add truck' },
       { to: '/loads', label: 'Find loads' },
-      { to: '/pricing', label: 'Plans' },
+      { to: '/pricing', label: 'Plans & billing' },
     ];
   }
   if (role === 'shipper') {
     return [
       { to: '/dashboard', label: 'Dashboard' },
       { to: '/loads/new', label: 'Post a load' },
-      { to: '/pricing', label: 'Plans' },
+      { to: '/pricing', label: 'Plans & billing' },
     ];
   }
   if (role === 'admin') {
     return [
       { to: '/dashboard', label: 'Dashboard' },
-      { to: '/admin', label: 'Admin' },
+      { to: '/admin', label: 'Console' },
     ];
   }
   return [];
@@ -32,12 +32,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const links = navFor(user?.role);
 
-  const planLabel =
-    subscription?.plan === 'monthly' && subscription?.status === 'active'
-      ? 'Monthly plan'
-      : subscription?.plan === 'per_use'
-        ? `${subscription.credits ?? 0} credits`
-        : 'Free plan';
+  const planBadge = planLabel(subscription);
 
   return (
     <div className="min-h-screen">
@@ -81,9 +76,11 @@ export default function Layout() {
           <div className="flex items-center gap-3">
             {user ? (
               <>
-                <span className="hidden rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 sm:inline">
-                  {planLabel}
-                </span>
+                {user.role !== 'admin' && (
+                  <span className="hidden rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 sm:inline">
+                    {planBadge}
+                  </span>
+                )}
                 <div className="flex items-center gap-2">
                   <span className="grid h-9 w-9 place-items-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
                     {initials(user.name)}
