@@ -167,9 +167,9 @@ export default function Pricing() {
     {
       name: 'Monthly',
       price: money(29),
-      cadence: 'per month',
+      cadence: 'per 30 days',
       description: 'For companies that move freight every week.',
-      features: ['Unlimited contact unlocks', 'Unlimited truck listings', 'Full contact details in lists', 'Cancel anytime'],
+      features: ['Unlimited contact unlocks', 'Unlimited truck listings', 'Full contact details in lists', 'No auto-renewal'],
       highlight: true,
       action: {
         kind: 'monthly',
