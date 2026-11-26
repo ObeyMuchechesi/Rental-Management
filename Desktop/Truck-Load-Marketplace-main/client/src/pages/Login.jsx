@@ -45,12 +45,6 @@ export default function Login() {
             Carriers list the fleet. Shippers post the load.
           </figcaption>
         </figure>
-        <div className="mt-6 rounded-2xl bg-slate-100 p-5 text-sm text-slate-600">
-          <p className="font-semibold text-slate-800">Demo accounts</p>
-          <p className="mt-2">Carrier — ops@kilimanjaro.test · Carrier@123</p>
-          <p>Shipper — dispatch@savannah.test · Shipper@123</p>
-          <p>Admin — admin@trucklink.test · Admin@12345</p>
-        </div>
       </div>
 
       <form onSubmit={submit} className="card p-7">
