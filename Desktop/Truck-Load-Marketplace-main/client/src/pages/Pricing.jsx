@@ -374,8 +374,8 @@ export default function Pricing() {
             <p className="font-semibold text-slate-900">Paying in the app</p>
             <p className="mt-1">
               EcoCash and OneMoney are charged right here: approve the PIN prompt on your phone and the plan
-              activates without leaving this page. Card payments open PayNow's secure page instead. Nothing is
-              charged until you approve.
+              activates without leaving this page. Card details go on PayNow's secure window, which closes back
+              to this page automatically once the payment clears. Nothing is charged until you approve.
             </p>
           </div>
         </div>

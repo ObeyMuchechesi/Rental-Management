@@ -22,7 +22,7 @@ const PLAN_OPTIONS = [
 const METHODS = [
   { id: 'ecocash', name: 'EcoCash', hint: 'PIN prompt on your phone' },
   { id: 'onemoney', name: 'OneMoney', hint: 'PIN prompt on your phone' },
-  { id: 'card', name: 'Card', hint: 'Secure PayNow page' },
+  { id: 'card', name: 'Card', hint: 'Secure PayNow window' },
 ];
 
 const methodName = (id) => METHODS.find((item) => item.id === id)?.name || 'mobile money';
@@ -53,7 +53,9 @@ export default function CheckoutModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+  const [hostedUrl, setHostedUrl] = useState('');
   const timerRef = useRef(null);
+  const popupRef = useRef(null);
 
   const stopPolling = useCallback(() => {
     if (timerRef.current) {
@@ -62,9 +64,15 @@ export default function CheckoutModal({
     }
   }, []);
 
+  const closePopup = useCallback(() => {
+    if (popupRef.current && !popupRef.current.closed) popupRef.current.close();
+    popupRef.current = null;
+  }, []);
+
   useEffect(() => {
     if (!open) {
       stopPolling();
+      closePopup();
       setStep('form');
       setBusy(false);
       setError('');
@@ -72,12 +80,13 @@ export default function CheckoutModal({
       setReference(null);
       setInstructions('');
       setResult(null);
+      setHostedUrl('');
       return;
     }
     setPlan(presetPlan);
     setError('');
     setNote('');
-  }, [open, presetPlan, stopPolling]);
+  }, [open, presetPlan, stopPolling, closePopup]);
 
   useEffect(() => stopPolling, [stopPolling]);
 
@@ -89,6 +98,7 @@ export default function CheckoutModal({
       const { data } = await api.get(`/plans/payments/${paymentReference}/status`);
       if (data.payment.status === 'paid') {
         stopPolling();
+        closePopup();
         setResult(data.payment);
         setStep('done');
         setError('');
@@ -98,6 +108,7 @@ export default function CheckoutModal({
       }
       if (data.payment.status === 'failed' || data.payment.status === 'cancelled') {
         stopPolling();
+        closePopup();
         setStep('form');
         const friendly =
           data.payment.status === 'cancelled'
@@ -112,7 +123,7 @@ export default function CheckoutModal({
       }
       return false;
     },
-    [onPaid, refresh, refreshSubscription, stopPolling]
+    [onPaid, refresh, refreshSubscription, stopPolling, closePopup]
   );
 
   const poll = useCallback(
@@ -150,6 +161,10 @@ export default function CheckoutModal({
     }
 
     setBusy(true);
+    const popup = mobile
+      ? null
+      : window.open('', 'paynow_checkout', 'popup=yes,width=480,height=760');
+
     try {
       const { data } = await api.post(plan === 'monthly' ? '/plans/subscribe' : '/plans/credits', {
         method,
@@ -167,8 +182,21 @@ export default function CheckoutModal({
 
       const target = data.redirectUrl || data.url;
       if (!target) throw new Error(data.message || 'PayNow did not return a checkout link.');
+
+      if (popup && !popup.closed) {
+        popupRef.current = popup;
+        popup.location.href = target;
+        setReference(data.reference);
+        setHostedUrl(target);
+        setStep('waiting');
+        setBusy(false);
+        poll(data.reference, 0);
+        return;
+      }
+
       window.location.href = target;
     } catch (err) {
+      if (popup && !popup.closed) popup.close();
       setError(errorMessage(err, 'Could not start the payment.'));
       setBusy(false);
     }
@@ -187,8 +215,15 @@ export default function CheckoutModal({
 
   const cancelWaiting = () => {
     stopPolling();
+    closePopup();
+    setHostedUrl('');
     setStep('form');
     setNote('The payment is still pending. You can approve it on your phone or finish it later from payment history.');
+  };
+
+  const reopenPopup = () => {
+    if (!hostedUrl) return;
+    popupRef.current = window.open(hostedUrl, 'paynow_checkout', 'popup=yes,width=480,height=760');
   };
 
   if (!open) return null;
@@ -295,8 +330,8 @@ export default function CheckoutModal({
               </div>
             ) : (
               <Notice tone="info">
-                Card details are entered on PayNow's secure page. You will come back here automatically once
-                the payment is confirmed.
+                A secure PayNow card window opens over this page. You stay on TruckLink and this screen
+                confirms automatically once the payment goes through.
               </Notice>
             )}
 
@@ -314,7 +349,7 @@ export default function CheckoutModal({
                 ? 'Starting payment…'
                 : mobile
                   ? `Pay ${money(selectedPlan.price)} with ${methodName(method)}`
-                  : `Continue to PayNow · ${money(selectedPlan.price)}`}
+                  : `Pay by card · ${money(selectedPlan.price)}`}
             </button>
 
             <button type="button" onClick={onClose} className="w-full py-1 text-sm text-slate-500 hover:text-slate-700">
@@ -328,11 +363,23 @@ export default function CheckoutModal({
             <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-indigo-50">
               <span className="h-6 w-6 animate-pulse rounded-full bg-indigo-600" />
             </span>
-            <h3 className="mt-4 text-lg font-semibold text-slate-900">Approve on your phone</h3>
-            <p className="mt-2 text-sm text-slate-600">
-              {instructions ||
-                `A ${methodName(method)} prompt was sent to ${phone}. Enter your PIN to pay ${money(selectedPlan.price)}.`}
-            </p>
+            {mobile ? (
+              <>
+                <h3 className="mt-4 text-lg font-semibold text-slate-900">Approve on your phone</h3>
+                <p className="mt-2 text-sm text-slate-600">
+                  {instructions ||
+                    `A ${methodName(method)} prompt was sent to ${phone}. Enter your PIN to pay ${money(selectedPlan.price)}.`}
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="mt-4 text-lg font-semibold text-slate-900">Complete the card payment</h3>
+                <p className="mt-2 text-sm text-slate-600">
+                  A secure PayNow window is open over this page. Enter your card details there — this screen
+                  finishes on its own when the payment is confirmed.
+                </p>
+              </>
+            )}
             <p className="mt-4 text-3xl font-bold text-slate-900">{money(selectedPlan.price)}</p>
             <p className="text-xs text-slate-500">{selectedPlan.name} · {selectedPlan.hint}</p>
 
@@ -345,7 +392,12 @@ export default function CheckoutModal({
             {note && <div className="mt-4"><Notice tone="info">{note}</Notice></div>}
 
             <div className="mt-6 grid gap-2 sm:grid-cols-2">
-              <button type="button" onClick={checkNow} className="btn-primary">
+              {!mobile && (
+                <button type="button" onClick={reopenPopup} className="btn-primary">
+                  Reopen PayNow window
+                </button>
+              )}
+              <button type="button" onClick={checkNow} className={mobile ? 'btn-primary' : 'btn-ghost'}>
                 Check status
               </button>
               <button type="button" onClick={cancelWaiting} className="btn-ghost">
