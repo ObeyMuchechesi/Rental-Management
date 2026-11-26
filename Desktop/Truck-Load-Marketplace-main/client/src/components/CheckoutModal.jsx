@@ -22,7 +22,6 @@ const PLAN_OPTIONS = [
 const METHODS = [
   { id: 'ecocash', name: 'EcoCash', hint: 'PIN prompt on your phone' },
   { id: 'onemoney', name: 'OneMoney', hint: 'PIN prompt on your phone' },
-  { id: 'card', name: 'Card', hint: 'Secure PayNow window' },
 ];
 
 const methodName = (id) => METHODS.find((item) => item.id === id)?.name || 'mobile money';
@@ -285,7 +284,7 @@ export default function CheckoutModal({
 
             <div>
               <p className="text-sm font-semibold text-slate-800">Payment method</p>
-              <div className="mt-2 grid grid-cols-3 gap-2">
+              <div className="mt-2 grid grid-cols-2 gap-2">
                 {METHODS.map((option) => {
                   const selected = method === option.id;
                   return (
