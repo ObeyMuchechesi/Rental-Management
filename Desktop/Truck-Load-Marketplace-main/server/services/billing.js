@@ -7,6 +7,16 @@ const paynow = require('./paynow');
 
 const DAY_MS = 86400000;
 
+const MOBILE_METHODS = { ecocash: 'EcoCash', onemoney: 'OneMoney' };
+
+const normalizePhone = (value) => {
+  let digits = String(value || '').replace(/\D/g, '');
+  if (digits.startsWith('263')) digits = `0${digits.slice(3)}`;
+  return digits;
+};
+
+const validEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || ''));
+
 const newReference = () =>
   `TL${Date.now().toString(36).toUpperCase()}${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 
@@ -132,6 +142,9 @@ const serializePayment = (payment) => ({
   currency: payment.currency,
   credits: payment.credits,
   provider: payment.provider,
+  method: payment.provider === 'manual' ? 'manual' : payment.method || 'hosted',
+  phone: payment.status === 'pending' ? payment.phone : undefined,
+  instructions: payment.status === 'pending' ? payment.instructions : undefined,
   createdAt: payment.createdAt,
   paidAt: payment.paidAt,
   paynowReference: payment.paynowReference,
@@ -146,7 +159,7 @@ const publicBase = () => {
   return (firstClient || 'http://localhost:3000').replace(/\/+$/, '');
 };
 
-const createCheckout = async ({ companyId, user, planId }) => {
+const createCheckout = async ({ companyId, user, planId, method, phone }) => {
   const plan = planById(planId);
   if (!plan) throw withStatus('Choose the monthly plan or a credit pack.', 400, 'BAD_PLAN');
   if (!companyId) throw withStatus('Complete company onboarding first.', 400, 'NO_COMPANY');
@@ -156,6 +169,24 @@ const createCheckout = async ({ companyId, user, planId }) => {
       503,
       'PAYMENTS_NOT_CONFIGURED'
     );
+  }
+
+  const requestedMethod = String(method || '').toLowerCase();
+  const mobileMethod = MOBILE_METHODS[requestedMethod];
+  let payerPhone = '';
+
+  if (mobileMethod) {
+    payerPhone = normalizePhone(phone);
+    if (!/^07\d{8}$/.test(payerPhone)) {
+      throw withStatus(
+        'Enter a valid Zimbabwe mobile number, for example 0771234567.',
+        400,
+        'BAD_PHONE'
+      );
+    }
+    if (!process.env.PAYNOW_AUTHEMAIL && !validEmail(user?.email)) {
+      throw withStatus('Your account needs a valid email address for the PayNow receipt.', 400, 'BAD_EMAIL');
+    }
   }
 
   const company = await Company.findById(companyId).select('name');
@@ -171,15 +202,26 @@ const createCheckout = async ({ companyId, user, planId }) => {
     currency: plan.currency,
     credits: plan.credits,
     provider: 'paynow',
+    method: mobileMethod ? requestedMethod : 'hosted',
+    phone: payerPhone || undefined,
   });
 
-  const result = await paynow.initiateTransaction({
+  const common = {
     reference,
     amount: plan.price,
     info: `TruckLink ${plan.name} · ${company?.name || 'Company'}`,
     returnUrl: `${base}/pricing?payment=return&reference=${encodeURIComponent(reference)}`,
     resultUrl: `${base}/api/paynow/result`,
-  });
+  };
+
+  const result = mobileMethod
+    ? await paynow.initiateMobile({
+        ...common,
+        email: user?.email,
+        phone: payerPhone,
+        method: requestedMethod,
+      })
+    : await paynow.initiateTransaction(common);
 
   if (!result.ok) {
     payment.status = 'failed';
@@ -190,8 +232,22 @@ const createCheckout = async ({ companyId, user, planId }) => {
 
   payment.pollUrl = result.pollUrl;
   payment.browserUrl = result.browserUrl;
-  await payment.save();
 
+  if (mobileMethod) {
+    payment.instructions =
+      result.instructions ||
+      `Approve the ${mobileMethod} prompt on ${payerPhone} and enter your PIN to pay.`;
+    await payment.save();
+    return {
+      payment: serializePayment(payment),
+      reference,
+      mode: 'mobile',
+      method: requestedMethod,
+      instructions: payment.instructions,
+    };
+  }
+
+  await payment.save();
   return {
     payment: serializePayment(payment),
     reference,
@@ -275,6 +331,7 @@ const grantEntitlement = async ({ companyId, planId, days, credits, amount, init
     currency: plan.currency,
     credits: plan.id === 'credits' ? Number(credits) || plan.credits : 0,
     provider: 'manual',
+    method: 'manual',
     notes: note || 'Granted by super admin',
   });
 

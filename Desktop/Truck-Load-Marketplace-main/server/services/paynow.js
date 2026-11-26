@@ -113,6 +113,60 @@ const initiateTransaction = async ({ reference, amount, info, returnUrl, resultU
   }
 };
 
+// Express Checkout: the payer approves a USSD prompt on their handset, so no
+// browser redirect is needed for mobile money.
+const initiateMobile = async ({ reference, amount, info, returnUrl, resultUrl, email, phone, method }) => {
+  if (!isConfigured()) {
+    return { ok: false, error: 'PayNow is not configured on this server.' };
+  }
+
+  const fields = [
+    ['id', integrationId()],
+    ['reference', reference],
+    ['amount', Number(amount).toFixed(2)],
+    ['additionalinfo', info],
+    ['returnurl', returnUrl],
+    ['resulturl', resultUrl],
+    ['authemail', process.env.PAYNOW_AUTHEMAIL || email],
+    ['phone', phone],
+    ['method', method],
+    ['status', 'Message'],
+  ];
+
+  const body = new URLSearchParams();
+  for (const [key, value] of fields) body.append(key, value);
+  body.append('hash', hashValues(fields.map(([, value]) => value)));
+
+  try {
+    const { response, raw } = await request(`${baseUrl()}/interface/remotetransaction`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+    const { entries, map } = parseRaw(raw);
+
+    if (!response.ok) {
+      return { ok: false, error: `PayNow returned HTTP ${response.status}.`, raw, map };
+    }
+    if (String(map.status || '').toLowerCase() !== 'ok') {
+      return { ok: false, error: map.error || 'PayNow rejected the mobile payment.', raw, map };
+    }
+    if (!verifyEntries(entries)) {
+      return { ok: false, error: 'PayNow response signature did not match.', raw, map };
+    }
+
+    return {
+      ok: true,
+      pollUrl: map.pollurl || map.pollUrl,
+      browserUrl: map.browserurl || map.browserUrl,
+      instructions: map.instructions,
+      map,
+    };
+  } catch (err) {
+    return { ok: false, error: `Could not reach PayNow: ${err.message}` };
+  }
+};
+
 const checkStatus = async (pollUrl) => {
   if (!pollUrl) return { ok: false, status: 'Unknown', error: 'Missing poll URL.' };
   try {
@@ -139,6 +193,7 @@ const checkStatus = async (pollUrl) => {
 module.exports = {
   isConfigured,
   initiateTransaction,
+  initiateMobile,
   checkStatus,
   verifyRaw,
   parseRaw,

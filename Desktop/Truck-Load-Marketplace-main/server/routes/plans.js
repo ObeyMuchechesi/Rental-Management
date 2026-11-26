@@ -16,6 +16,8 @@ const checkout = async (req, res, next, planId) => {
       companyId: companyIdOf(req),
       user: req.user,
       planId,
+      method: req.body?.method,
+      phone: req.body?.phone,
     });
     res.json(result);
   } catch (err) {

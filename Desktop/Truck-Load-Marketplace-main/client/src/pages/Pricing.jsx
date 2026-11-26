@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
+import CheckoutModal from '../components/CheckoutModal';
 import PlanBanner from '../components/PlanBanner';
 import { Badge, Notice, PageHeader } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { date, money, paymentTone } from '../lib/format';
 
+const METHOD_LABELS = { ecocash: 'EcoCash', onemoney: 'OneMoney', card: 'Card', hosted: 'PayNow', manual: 'Manual' };
+
 export default function Pricing() {
   const { user, subscription, refresh, refreshSubscription } = useAuth();
   const [searchParams] = useSearchParams();
-  const [busy, setBusy] = useState('');
+  const [checkout, setCheckout] = useState(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [payments, setPayments] = useState([]);
@@ -105,19 +108,10 @@ export default function Pricing() {
     };
   }, [applyResult, returnReference, userId]);
 
-  const start = async (kind) => {
-    setBusy(kind);
+  const start = (kind) => {
     setError('');
     setNotice('');
-    try {
-      const { data } = await api.post(kind === 'monthly' ? '/plans/subscribe' : '/plans/credits');
-      const target = data.redirectUrl || data.url;
-      if (!target) throw new Error(data.message || 'PayNow did not return a checkout link.');
-      window.location.href = target;
-    } catch (err) {
-      setError(errorMessage(err, 'Could not start checkout.'));
-      setBusy('');
-    }
+    setCheckout(kind);
   };
 
   const checkStatus = async (payment) => {
@@ -209,11 +203,14 @@ export default function Pricing() {
       {pendingPayment && (
         <div className="card flex flex-wrap items-center justify-between gap-4 p-5">
           <div>
-            <p className="text-sm font-semibold text-slate-900">Payment awaiting PayNow confirmation</p>
+            <p className="text-sm font-semibold text-slate-900">Payment awaiting confirmation</p>
             <p className="mt-0.5 text-sm text-slate-600">
-              {pendingPayment.planName} · {money(pendingPayment.amount, pendingPayment.currency)} · started{' '}
-              {date(pendingPayment.createdAt)}
+              {pendingPayment.planName} · {money(pendingPayment.amount, pendingPayment.currency)} ·{' '}
+              {METHOD_LABELS[pendingPayment.method] || 'PayNow'} · started {date(pendingPayment.createdAt)}
             </p>
+            {pendingPayment.instructions && (
+              <p className="mt-1 text-sm text-slate-500">{pendingPayment.instructions}</p>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             {pendingPayment.browserUrl && (
@@ -259,10 +256,9 @@ export default function Pricing() {
                   <button
                     type="button"
                     onClick={() => start(plan.action.kind)}
-                    disabled={!!busy}
                     className={`w-full ${plan.highlight ? 'btn-primary' : 'btn-ghost'}`}
                   >
-                    {busy === plan.action.kind ? 'Starting PayNow…' : plan.action.label}
+                    {plan.action.label}
                   </button>
                 ) : (
                   <Link to="/register" className="btn-primary w-full">
@@ -375,14 +371,23 @@ export default function Pricing() {
             </p>
           </div>
           <div>
-            <p className="font-semibold text-slate-900">PayNow checkout</p>
+            <p className="font-semibold text-slate-900">Paying in the app</p>
             <p className="mt-1">
-              Payments run through PayNow Zimbabwe in USD. Your plan activates automatically once PayNow
-              confirms it — or tap “Check status” here. Nothing is charged until you approve it in PayNow.
+              EcoCash and OneMoney are charged right here: approve the PIN prompt on your phone and the plan
+              activates without leaving this page. Card payments open PayNow's secure page instead. Nothing is
+              charged until you approve.
             </p>
           </div>
         </div>
       </div>
+
+      <CheckoutModal
+        open={!!checkout}
+        presetPlan={checkout || 'credits'}
+        onClose={() => setCheckout(null)}
+        onPaid={loadPayments}
+        title="Pay for TruckLink"
+      />
     </div>
   );
 }
